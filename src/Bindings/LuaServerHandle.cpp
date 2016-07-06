@@ -14,9 +14,9 @@
 
 cLuaServerHandle::cLuaServerHandle(UInt16 a_Port, cPluginLua & a_Plugin, int a_CallbacksTableStackPos):
 	m_Plugin(a_Plugin),
-	m_Callbacks(cPluginLua::cOperation(a_Plugin)(), a_CallbacksTableStackPos),
 	m_Port(a_Port)
 {
+	cPluginLua::cOperation(a_Plugin)().GetStackValue(a_CallbacksTableStackPos, m_Callbacks);
 }
 
 
@@ -135,10 +135,10 @@ cTCPLink::cCallbacksPtr cLuaServerHandle::OnIncomingConnection(const AString & a
 
 	// Ask the plugin for link callbacks:
 	cPluginLua::cOperation Op(m_Plugin);
-	cLuaState::cRef LinkCallbacks;
+	cLuaState::cTrackedRefPtr LinkCallbacks;
 	if (
 		!Op().Call(cLuaState::cTableRef(m_Callbacks, "OnIncomingConnection"), a_RemoteIPAddress, a_RemotePort, m_Port, cLuaState::Return, LinkCallbacks) ||
-		!LinkCallbacks.IsValid()
+		!LinkCallbacks->IsValid()
 	)
 	{
 		LOGINFO("cNetwork server (port %d) OnIncomingConnection callback failed in plugin %s. Dropping connection.",

@@ -58,7 +58,7 @@ protected:
 	cPluginLua & m_Plugin;
 
 	/** The Lua table that holds the callbacks to be invoked. */
-	cLuaState::cRef m_Callbacks;
+	cLuaState::cTrackedRef m_Callbacks;
 
 	/** The port on which the server is listening.
 	Used mainly for better error reporting. */

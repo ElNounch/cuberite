@@ -34,7 +34,7 @@ public:
 	cLuaTCPLink(cPluginLua & a_Plugin, int a_CallbacksTableStackPos);
 
 	/** Creates a new instance of the link, attached to the specified plugin and wrapping the callbacks that are in the specified referenced table. */
-	cLuaTCPLink(cPluginLua & a_Plugin, cLuaState::cRef && a_CallbacksTableRef, cLuaServerHandleWPtr a_Server);
+	cLuaTCPLink(cPluginLua & a_Plugin, cLuaState::cTrackedRefPtr && a_CallbacksTableRef, cLuaServerHandleWPtr a_Server);
 
 	~cLuaTCPLink();
 
@@ -143,7 +143,7 @@ protected:
 	cPluginLua & m_Plugin;
 
 	/** The Lua table that holds the callbacks to be invoked. */
-	cLuaState::cRef m_Callbacks;
+	cLuaState::cTrackedRefPtr m_Callbacks;
 
 	/** The underlying link representing the connection.
 	May be nullptr. */

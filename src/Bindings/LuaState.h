@@ -120,25 +120,83 @@ public:
 	} ;
 
 
-	/** Used for calling functions stored in a reference-stored table */
+	/** Represents a reference to a Lua object that has a tracked lifetime -
+	- when the Lua state to which it belongs is closed, the object is kept alive, but invalidated.
+	Is thread-safe and unload-safe.
+	To receive the cTrackedRef instance from the Lua side, use RefStack() or (better) cLuaState::GetStackValue().
+	Note that instances of this class are tracked in the canon LuaState instance, so that
+	they can be invalidated when the LuaState is unloaded; due to multithreading issues they can only be tracked
+	by-ptr, which has an unfortunate effect of disabling the copy and move constructors. */
+	class cTrackedRef
+	{
+	public:
+		/** Creates an unbound ref instance. */
+		cTrackedRef(void);
+
+		~cTrackedRef()
+		{
+			Clear();
+		}
+
+		/** Set the contained reference to the object at the specified Lua state's stack position.
+		If another reference has been previously contained, it is freed first. */
+		bool RefStack(cLuaState & a_LuaState, int a_StackPos);
+
+		/** Frees the contained reference, if any. */
+		void Clear(void);
+
+		/** Returns true if the contained reference is valid. */
+		bool IsValid(void);
+
+		/** Returns true if the reference resides in the specified Lua state.
+		Internally, compares the reference's canon Lua state. */
+		bool IsSameLuaState(cLuaState & a_LuaState);
+
+	protected:
+		friend class cLuaState;
+
+		/** The mutex protecting m_Ref against multithreaded access */
+		cCriticalSection * m_CS;
+
+		/** Reference to the Lua callback */
+		cRef m_Ref;
+
+
+		/** Invalidates the callback, without untracking it from the cLuaState.
+		Called only from cLuaState when closing the Lua state. */
+		void Invalidate(void);
+
+		/** Returns the internal reference.
+		Only to be used when the cLuaState's CS is held and the cLuaState is known to be valid. */
+		cRef & GetRef() { return m_Ref; }
+
+		/** This class cannot be copied, because it is tracked in the LuaState by-ptr.
+		Use a smart pointer for a copyable object. */
+		cTrackedRef(const cTrackedRef &) = delete;
+
+		/** This class cannot be moved, because it is tracked in the LuaState by-ptr.
+		Use a smart pointer for a copyable object. */
+		cTrackedRef(cTrackedRef &&) = delete;
+	};
+	typedef UniquePtr<cTrackedRef> cTrackedRefPtr;
+	typedef SharedPtr<cTrackedRef> cTrackedRefSharedPtr;
+
+
+	/** Used for calling functions stored in a reference-stored table.
+	Used for Lua classes that use tables of callbacks. The table is stored in a cTrackedRef and then callbacks use
+	luaState.Call(cTableRef(tableRef, "fnName"), params) to make the actual call later on. */
 	class cTableRef
 	{
-		int m_TableRef;
+		cTrackedRef & m_TableRef;
 		const char * m_FnName;
 	public:
-		cTableRef(int a_TableRef, const char * a_FnName) :
+		cTableRef(cTrackedRef & a_TableRef, const char * a_FnName) :
 			m_TableRef(a_TableRef),
 			m_FnName(a_FnName)
 		{
 		}
 
-		cTableRef(const cRef & a_TableRef, const char * a_FnName) :
-			m_TableRef(static_cast<int>(a_TableRef)),
-			m_FnName(a_FnName)
-		{
-		}
-
-		int GetTableRef(void) const { return m_TableRef; }
+		cTrackedRef & GetTableRef(void) const { return m_TableRef; }
 		const char * GetFnName(void) const { return m_FnName; }
 	} ;
 
@@ -150,16 +208,14 @@ public:
 	with a cCallbackPtr. Note that instances of this class are tracked in the canon LuaState instance, so that
 	they can be invalidated when the LuaState is unloaded; due to multithreading issues they can only be tracked
 	by-ptr, which has an unfortunate effect of disabling the copy and move constructors. */
-	class cCallback
+	class cCallback:
+		public cTrackedRef
 	{
-	public:
-		/** Creates an unbound callback instance. */
-		cCallback(void);
+		typedef cTrackedRef Super;
 
-		~cCallback()
-		{
-			Clear();
-		}
+	public:
+
+		cCallback(void) {}
 
 		/** Calls the Lua callback, if still available.
 		Returns true if callback has been called.
@@ -184,29 +240,7 @@ public:
 		If a callback has been previously contained, it is freed first. */
 		bool RefStack(cLuaState & a_LuaState, int a_StackPos);
 
-		/** Frees the contained callback, if any. */
-		void Clear(void);
-
-		/** Returns true if the contained callback is valid. */
-		bool IsValid(void);
-
-		/** Returns true if the callback resides in the specified Lua state.
-		Internally, compares the callback's canon Lua state. */
-		bool IsSameLuaState(cLuaState & a_LuaState);
-
 	protected:
-		friend class cLuaState;
-
-		/** The mutex protecting m_Ref against multithreaded access */
-		cCriticalSection * m_CS;
-
-		/** Reference to the Lua callback */
-		cRef m_Ref;
-
-
-		/** Invalidates the callback, without untracking it from the cLuaState.
-		Called only from cLuaState when closing the Lua state. */
-		void Invalidate(void);
 
 		/** This class cannot be copied, because it is tracked in the LuaState by-ptr.
 		Use cCallbackPtr for a copyable object. */
@@ -383,6 +417,9 @@ public:
 	bool GetStackValue(int a_StackPos, cCallbackSharedPtr & a_Callback);
 	bool GetStackValue(int a_StackPos, cPluginManager::CommandResult & a_Result);
 	bool GetStackValue(int a_StackPos, cRef & a_Ref);
+	bool GetStackValue(int a_StackPos, cTrackedRef & a_Ref);
+	bool GetStackValue(int a_StackPos, cTrackedRefPtr & a_Ref);
+	bool GetStackValue(int a_StackPos, cTrackedRefSharedPtr & a_Ref);
 	bool GetStackValue(int a_StackPos, double & a_Value);
 	bool GetStackValue(int a_StackPos, eBlockFace & a_Value);
 	bool GetStackValue(int a_StackPos, eWeather & a_Value);
@@ -583,13 +620,13 @@ protected:
 	/** Number of arguments currently pushed (for the Push / Call chain) */
 	int m_NumCurrentFunctionArgs;
 
-	/** The tracked callbacks.
-	This object will invalidate all of these when it is about to be closed.
-	Protected against multithreaded access by m_CSTrackedCallbacks. */
-	std::vector<cCallback *> m_TrackedCallbacks;
+	/** The tracked references.
+	The cLuaState will invalidate all of these when it is about to be closed.
+	Protected against multithreaded access by m_CSTrackedRefs. */
+	std::vector<cTrackedRef *> m_TrackedRefs;
 
-	/** Protects m_TrackedTallbacks against multithreaded access. */
-	cCriticalSection m_CSTrackedCallbacks;
+	/** Protects m_TrackedRefs against multithreaded access. */
+	cCriticalSection m_CSTrackedRefs;
 
 
 	/** Variadic template terminator: If there's nothing more to push / pop, just call the function.
@@ -667,13 +704,13 @@ protected:
 	/** Tries to break into the MobDebug debugger, if it is installed. */
 	static int BreakIntoDebugger(lua_State * a_LuaState);
 
-	/** Adds the specified callback to tracking.
-	The callback will be invalidated when this Lua state is about to be closed. */
-	void TrackCallback(cCallback & a_Callback);
+	/** Adds the specified reference to tracking.
+	The reference will be invalidated when this Lua state is about to be closed. */
+	void TrackRef(cTrackedRef & a_Ref);
 
-	/** Removes the specified callback from tracking.
-	The callback will no longer be invalidated when this Lua state is about to be closed. */
-	void UntrackCallback(cCallback & a_Callback);
+	/** Removes the specified reference from tracking.
+	The reference will no longer be invalidated when this Lua state is about to be closed. */
+	void UntrackRef(cTrackedRef & a_Ref);
 } ;
 
 

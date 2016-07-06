@@ -183,7 +183,7 @@ static int tolua_cNetwork_HostnameToIP(lua_State * L)
 	S.GetStackValue(2, Host);
 
 	// Try to look up:
-	bool res = cNetwork::HostnameToIP(Host, std::make_shared<cLuaNameLookup>(Host, *Plugin, 3));
+	bool res = cNetwork::HostnameToIP(Host, std::make_shared<cLuaNameLookup>(Host, *Plugin, S, 3));
 	S.Push(res);
 
 	return 1;
@@ -224,7 +224,7 @@ static int tolua_cNetwork_IPToHostname(lua_State * L)
 	S.GetStackValue(2, Host);
 
 	// Try to look up:
-	bool res = cNetwork::IPToHostName(Host, std::make_shared<cLuaNameLookup>(Host, *Plugin, 3));
+	bool res = cNetwork::IPToHostName(Host, std::make_shared<cLuaNameLookup>(Host, *Plugin, S, 3));
 	S.Push(res);
 
 	return 1;

@@ -2648,16 +2648,16 @@ class cLuaBlockTracerCallbacks :
 {
 public:
 	cLuaBlockTracerCallbacks(cLuaState & a_LuaState, int a_ParamNum) :
-		m_LuaState(a_LuaState),
-		m_TableRef(a_LuaState, a_ParamNum)
+		m_LuaState(a_LuaState)
 	{
+		a_LuaState.GetStackValue(a_ParamNum, m_Callbacks);
 	}
 
 	virtual bool OnNextBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta, char a_EntryFace) override
 	{
 		bool res = false;
 		if (!m_LuaState.Call(
-			cLuaState::cTableRef(m_TableRef, "OnNextBlock"),
+			cLuaState::cTableRef(m_Callbacks, "OnNextBlock"),
 			a_BlockX, a_BlockY, a_BlockZ, a_BlockType, a_BlockMeta, a_EntryFace,
 			cLuaState::Return, res
 		))
@@ -2672,7 +2672,7 @@ public:
 	{
 		bool res = false;
 		if (!m_LuaState.Call(
-			cLuaState::cTableRef(m_TableRef, "OnNextBlockNoData"),
+			cLuaState::cTableRef(m_Callbacks, "OnNextBlockNoData"),
 			a_BlockX, a_BlockY, a_BlockZ, a_EntryFace,
 			cLuaState::Return, res
 		))
@@ -2687,7 +2687,7 @@ public:
 	{
 		bool res = false;
 		if (!m_LuaState.Call(
-			cLuaState::cTableRef(m_TableRef, "OnOutOfWorld"),
+			cLuaState::cTableRef(m_Callbacks, "OnOutOfWorld"),
 			a_BlockX, a_BlockY, a_BlockZ,
 			cLuaState::Return, res
 		))
@@ -2702,7 +2702,7 @@ public:
 	{
 		bool res = false;
 		if (!m_LuaState.Call(
-			cLuaState::cTableRef(m_TableRef, "OnIntoWorld"),
+			cLuaState::cTableRef(m_Callbacks, "OnIntoWorld"),
 			a_BlockX, a_BlockY, a_BlockZ,
 			cLuaState::Return, res
 		))
@@ -2715,17 +2715,17 @@ public:
 
 	virtual void OnNoMoreHits(void) override
 	{
-		m_LuaState.Call(cLuaState::cTableRef(m_TableRef, "OnNoMoreHits"));
+		m_LuaState.Call(cLuaState::cTableRef(m_Callbacks, "OnNoMoreHits"));
 	}
 
 	virtual void OnNoChunk(void) override
 	{
-		m_LuaState.Call(cLuaState::cTableRef(m_TableRef, "OnNoChunk"));
+		m_LuaState.Call(cLuaState::cTableRef(m_Callbacks, "OnNoChunk"));
 	}
 
 protected:
 	cLuaState & m_LuaState;
-	cLuaState::cRef m_TableRef;
+	cLuaState::cTrackedRef m_Callbacks;
 } ;
 
 

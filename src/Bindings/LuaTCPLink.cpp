@@ -12,11 +12,10 @@
 
 
 cLuaTCPLink::cLuaTCPLink(cPluginLua & a_Plugin, int a_CallbacksTableStackPos):
-	m_Plugin(a_Plugin),
-	m_Callbacks(cPluginLua::cOperation(a_Plugin)(), a_CallbacksTableStackPos)
+	m_Plugin(a_Plugin)
 {
 	// Warn if the callbacks aren't valid:
-	if (!m_Callbacks.IsValid())
+	if (!cPluginLua::cOperation(a_Plugin)().GetStackValue(a_CallbacksTableStackPos, m_Callbacks))
 	{
 		LOGWARNING("cTCPLink in plugin %s: callbacks could not be retrieved", m_Plugin.GetName().c_str());
 		cPluginLua::cOperation Op(m_Plugin);
@@ -28,13 +27,13 @@ cLuaTCPLink::cLuaTCPLink(cPluginLua & a_Plugin, int a_CallbacksTableStackPos):
 
 
 
-cLuaTCPLink::cLuaTCPLink(cPluginLua & a_Plugin, cLuaState::cRef && a_CallbacksTableRef, cLuaServerHandleWPtr a_ServerHandle):
+cLuaTCPLink::cLuaTCPLink(cPluginLua & a_Plugin, cLuaState::cTrackedRefPtr && a_CallbacksTableRef, cLuaServerHandleWPtr a_ServerHandle):
 	m_Plugin(a_Plugin),
 	m_Callbacks(std::move(a_CallbacksTableRef)),
 	m_Server(std::move(a_ServerHandle))
 {
 	// Warn if the callbacks aren't valid:
-	if (!m_Callbacks.IsValid())
+	if (!m_Callbacks->IsValid())
 	{
 		LOGWARNING("cTCPLink in plugin %s: callbacks could not be retrieved", m_Plugin.GetName().c_str());
 		cPluginLua::cOperation Op(m_Plugin);
@@ -303,9 +302,9 @@ AString cLuaTCPLink::StartTLSServer(
 void cLuaTCPLink::Terminated(void)
 {
 	// Disable the callbacks:
-	if (m_Callbacks.IsValid())
+	if (m_Callbacks->IsValid())
 	{
-		m_Callbacks.UnRef();
+		m_Callbacks->Clear();
 	}
 
 	// If the managing server is still alive, let it know we're terminating:
@@ -336,14 +335,14 @@ void cLuaTCPLink::Terminated(void)
 void cLuaTCPLink::ReceivedCleartextData(const char * a_Data, size_t a_NumBytes)
 {
 	// Check if we're still valid:
-	if (!m_Callbacks.IsValid())
+	if (!m_Callbacks->IsValid())
 	{
 		return;
 	}
 
 	// Call the callback:
 	cPluginLua::cOperation Op(m_Plugin);
-	if (!Op().Call(cLuaState::cTableRef(m_Callbacks, "OnReceivedData"), this, AString(a_Data, a_NumBytes)))
+	if (!Op().Call(cLuaState::cTableRef(*m_Callbacks, "OnReceivedData"), this, AString(a_Data, a_NumBytes)))
 	{
 		LOGINFO("cTCPLink OnReceivedData callback failed in plugin %s.", m_Plugin.GetName().c_str());
 	}
@@ -356,14 +355,14 @@ void cLuaTCPLink::ReceivedCleartextData(const char * a_Data, size_t a_NumBytes)
 void cLuaTCPLink::OnConnected(cTCPLink & a_Link)
 {
 	// Check if we're still valid:
-	if (!m_Callbacks.IsValid())
+	if (!m_Callbacks->IsValid())
 	{
 		return;
 	}
 
 	// Call the callback:
 	cPluginLua::cOperation Op(m_Plugin);
-	if (!Op().Call(cLuaState::cTableRef(m_Callbacks, "OnConnected"), this))
+	if (!Op().Call(cLuaState::cTableRef(*m_Callbacks, "OnConnected"), this))
 	{
 		LOGINFO("cTCPLink OnConnected() callback failed in plugin %s.", m_Plugin.GetName().c_str());
 	}
@@ -376,14 +375,14 @@ void cLuaTCPLink::OnConnected(cTCPLink & a_Link)
 void cLuaTCPLink::OnError(int a_ErrorCode, const AString & a_ErrorMsg)
 {
 	// Check if we're still valid:
-	if (!m_Callbacks.IsValid())
+	if (!m_Callbacks->IsValid())
 	{
 		return;
 	}
 
 	// Call the callback:
 	cPluginLua::cOperation Op(m_Plugin);
-	if (!Op().Call(cLuaState::cTableRef(m_Callbacks, "OnError"), this, a_ErrorCode, a_ErrorMsg))
+	if (!Op().Call(cLuaState::cTableRef(*m_Callbacks, "OnError"), this, a_ErrorCode, a_ErrorMsg))
 	{
 		LOGINFO("cTCPLink OnError() callback failed in plugin %s; the link error is %d (%s).",
 			m_Plugin.GetName().c_str(), a_ErrorCode, a_ErrorMsg.c_str()
@@ -410,7 +409,7 @@ void cLuaTCPLink::OnLinkCreated(cTCPLinkPtr a_Link)
 void cLuaTCPLink::OnReceivedData(const char * a_Data, size_t a_Length)
 {
 	// Check if we're still valid:
-	if (!m_Callbacks.IsValid())
+	if (!m_Callbacks->IsValid())
 	{
 		return;
 	}
@@ -425,7 +424,7 @@ void cLuaTCPLink::OnReceivedData(const char * a_Data, size_t a_Length)
 
 	// Call the callback:
 	cPluginLua::cOperation Op(m_Plugin);
-	if (!Op().Call(cLuaState::cTableRef(m_Callbacks, "OnReceivedData"), this, AString(a_Data, a_Length)))
+	if (!Op().Call(cLuaState::cTableRef(*m_Callbacks, "OnReceivedData"), this, AString(a_Data, a_Length)))
 	{
 		LOGINFO("cTCPLink OnReceivedData callback failed in plugin %s.", m_Plugin.GetName().c_str());
 	}
@@ -438,7 +437,7 @@ void cLuaTCPLink::OnReceivedData(const char * a_Data, size_t a_Length)
 void cLuaTCPLink::OnRemoteClosed(void)
 {
 	// Check if we're still valid:
-	if (!m_Callbacks.IsValid())
+	if (!m_Callbacks->IsValid())
 	{
 		return;
 	}
@@ -452,7 +451,7 @@ void cLuaTCPLink::OnRemoteClosed(void)
 
 	// Call the callback:
 	cPluginLua::cOperation Op(m_Plugin);
-	if (!Op().Call(cLuaState::cTableRef(m_Callbacks, "OnRemoteClosed"), this))
+	if (!Op().Call(cLuaState::cTableRef(*m_Callbacks, "OnRemoteClosed"), this))
 	{
 		LOGINFO("cTCPLink OnRemoteClosed() callback failed in plugin %s.", m_Plugin.GetName().c_str());
 	}

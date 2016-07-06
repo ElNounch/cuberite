@@ -22,14 +22,14 @@ class cLuaNameLookup:
 public:
 	/** Creates a new instance of the lookup callbacks for the specified query,
 	attached to the specified lua plugin and wrapping the callbacks that are in a table at the specified stack pos. */
-	cLuaNameLookup(const AString & a_Query, cPluginLua & a_Plugin, int a_CallbacksTableStackPos);
+	cLuaNameLookup(const AString & a_Query, cPluginLua & a_Plugin, cLuaState & a_LuaState, int a_CallbacksTableStackPos);
 
 protected:
 	/** The plugin for which the query is created. */
 	cPluginLua & m_Plugin;
 
 	/** The Lua table that holds the callbacks to be invoked. */
-	cLuaState::cRef m_Callbacks;
+	cLuaState::cTrackedRef m_Callbacks;
 
 	/** The query used to start the lookup (either hostname or IP). */
 	AString m_Query;

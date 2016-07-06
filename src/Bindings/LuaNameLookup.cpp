@@ -10,11 +10,11 @@
 
 
 
-cLuaNameLookup::cLuaNameLookup(const AString & a_Query, cPluginLua & a_Plugin, int a_CallbacksTableStackPos):
+cLuaNameLookup::cLuaNameLookup(const AString & a_Query, cPluginLua & a_Plugin, cLuaState & a_LuaState, int a_CallbacksTableStackPos):
 	m_Plugin(a_Plugin),
-	m_Callbacks(cPluginLua::cOperation(a_Plugin)(), a_CallbacksTableStackPos),
 	m_Query(a_Query)
 {
+	a_LuaState.GetStackValue(a_CallbacksTableStackPos, m_Callbacks);
 }
 
 

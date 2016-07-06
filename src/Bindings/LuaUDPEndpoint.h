@@ -62,7 +62,7 @@ protected:
 	cPluginLua & m_Plugin;
 
 	/** The Lua table that holds the callbacks to be invoked. */
-	cLuaState::cRef m_Callbacks;
+	cLuaState::cTrackedRef m_Callbacks;
 
 	/** SharedPtr to self, so that the object can keep itself alive for as long as it needs (for Lua). */
 	cLuaUDPEndpointPtr m_Self;

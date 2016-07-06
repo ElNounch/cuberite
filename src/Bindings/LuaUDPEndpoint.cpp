@@ -11,11 +11,10 @@
 
 
 cLuaUDPEndpoint::cLuaUDPEndpoint(cPluginLua & a_Plugin, int a_CallbacksTableStackPos):
-	m_Plugin(a_Plugin),
-	m_Callbacks(cPluginLua::cOperation(a_Plugin)(), a_CallbacksTableStackPos)
+	m_Plugin(a_Plugin)
 {
 	// Warn if the callbacks aren't valid:
-	if (!m_Callbacks.IsValid())
+	if (!cPluginLua::cOperation(a_Plugin)().GetStackValue(a_CallbacksTableStackPos, m_Callbacks))
 	{
 		LOGWARNING("cLuaUDPEndpoint in plugin %s: callbacks could not be retrieved", m_Plugin.GetName().c_str());
 		cPluginLua::cOperation Op(m_Plugin);
@@ -158,7 +157,7 @@ void cLuaUDPEndpoint::Terminated(void)
 	// Disable the callbacks:
 	if (m_Callbacks.IsValid())
 	{
-		m_Callbacks.UnRef();
+		m_Callbacks.Clear();
 	}
 
 	// If the endpoint is still open, close it:
