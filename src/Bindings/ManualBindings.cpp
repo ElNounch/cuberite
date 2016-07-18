@@ -18,6 +18,7 @@
 #include "../Entities/Player.h"
 #include "../WebAdmin.h"
 #include "../ClientHandle.h"
+#include "../ChannelManager.h"
 #include "../BlockArea.h"
 #include "../BlockEntities/BeaconEntity.h"
 #include "../BlockEntities/BrewingstandEntity.h"
@@ -39,6 +40,7 @@
 #include "../BuildInfo.h"
 #include "../HTTP/UrlParser.h"
 #include "../BoundingBox.h"
+#include "../ChannelCallback.h"
 
 
 
@@ -3718,6 +3720,50 @@ static int tolua_cCompositeChat_UnderlineUrls(lua_State * tolua_S)
 
 
 
+static int tolua_cChannelManager_RegisterChannel(lua_State * tolua_S)
+{
+
+	// Retrieve the cPlugin from the LuaState:
+	cPluginLua * Plugin = cManualBindings::GetLuaPlugin(tolua_S);
+	if (Plugin == nullptr)
+	{
+		// An error message has been already printed in GetLuaPlugin()
+		return 0;
+	}
+
+	// Check params:
+	cLuaState L(tolua_S);
+	if (!L.CheckParamUserType(1, "cChannelManager"))
+	{
+		return 0;
+	}
+	cChannelManager * self = reinterpret_cast<cChannelManager *>(tolua_tousertype(tolua_S, 1, nullptr));
+	if (self == nullptr)
+	{
+		return cManualBindings::lua_do_error(tolua_S, "invalid 'self' in function 'cCompositeChat:UnderlineUrls'");
+	}
+	if (!L.CheckParamString(2) || !L.CheckParamFunction(3))
+	{
+		return 0;
+	}
+
+	AString Channel;
+	L.GetStackValue(2, Channel);
+	cLuaState::cCallbackPtr Callback;
+	L.GetStackValue(3, Callback);
+	auto ChannelCallback = std::make_shared<cChannelCallback>(*Plugin, Callback);
+
+	self->RegisterChannel(Channel, ChannelCallback);
+
+	// Cut away everything from the stack except for the cChannelManager reference; return that
+	lua_settop(L, 1);
+	return 1;
+}
+
+
+
+
+
 void cManualBindings::Bind(lua_State * tolua_S)
 {
 	tolua_beginmodule(tolua_S, nullptr);
@@ -3929,13 +3975,13 @@ void cManualBindings::Bind(lua_State * tolua_S)
 			tolua_variable(tolua_S, "PostParams", tolua_get_HTTPRequest_PostParams, nullptr);
 		tolua_endmodule(tolua_S);
 
+		tolua_beginmodule(tolua_S, "cChannelManager");
+			tolua_function(tolua_S, "RegisterChannel", tolua_cChannelManager_RegisterChannel);
+		tolua_endmodule(tolua_S);
+
 		BindNetwork(tolua_S);
 		BindRankManager(tolua_S);
 		BindWorld(tolua_S);
 
 	tolua_endmodule(tolua_S);
 }
-
-
-
-

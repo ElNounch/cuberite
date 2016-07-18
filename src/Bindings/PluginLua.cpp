@@ -17,6 +17,8 @@
 #include "../Item.h"
 #include "../Root.h"
 #include "../WebAdmin.h"
+#include "../ChannelManager.h"
+#include "../Server.h"
 
 extern "C"
 {
@@ -185,6 +187,7 @@ void cPluginLua::Unload(void)
 {
 	ClearWebTabs();
 	super::Unload();
+	cRoot::Get()->GetServer()->GetChannelManager()->HandlePluginUnloading(this);
 	Close();
 }
 
@@ -1148,7 +1151,3 @@ void cPluginLua::ClearWebTabs(void)
 		webAdmin->RemoveAllPluginWebTabs(m_Name);
 	}
 }
-
-
-
-

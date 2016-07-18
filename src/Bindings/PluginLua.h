@@ -207,7 +207,3 @@ protected:
 		return false;
 	}
 } ;  // tolua_export
-
-
-
-

@@ -84,6 +84,7 @@ set(BINDING_DEPENDENCIES
 	../BlockID.h
 	../BlockInfo.h
 	../BoundingBox.h
+	../ChannelManager.h
 	../ChatColor.h
 	../ChunkDef.h
 	../ClientHandle.h
