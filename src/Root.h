@@ -8,6 +8,7 @@
 #include "RankManager.h"
 #include <thread>
 #include <atomic>
+#include <unordered_map>
 
 
 
@@ -191,11 +192,7 @@ private:
 		cCommandOutputCallback * m_Output;
 	} ;
 
-	typedef std::map<AString, cWorld *> WorldMap;
 	typedef std::vector<cCommand> cCommandQueue;
-
-	cWorld * m_pDefaultWorld;
-	WorldMap m_WorldsByName;
 
 	cCriticalSection m_CSPendingCommands;
 	cCommandQueue    m_PendingCommands;
@@ -219,20 +216,20 @@ private:
 
 	cHTTPServer m_HTTPServer;
 
+	cWorld * m_pDefaultWorld;
+	std::unordered_map<AString, std::unique_ptr<cWorld>> m_WorldsByName;
+
 
 	void LoadGlobalSettings();
 
 	/** Loads the worlds from settings.ini, creates the worldmap */
 	void LoadWorlds(cSettingsRepositoryInterface & a_Settings, bool a_IsNewIniFile);
 
-	/** Starts each world's life */
+	/** Starts the tick thread of each loaded world. */
 	void StartWorlds(void);
 
-	/** Stops each world's threads, so that it's safe to unload them */
+	/** Stops each world's threads, so that it's safe to unload them. */
 	void StopWorlds(void);
-
-	/** Unloads all worlds from memory */
-	void UnloadWorlds(void);
 
 	/** Does the actual work of executing a command */
 	void DoExecuteConsoleCommand(const AString & a_Cmd);

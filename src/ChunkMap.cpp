@@ -44,7 +44,6 @@ cChunkMap::cChunkMap(cWorld * a_World) :
 		)
 	)
 {
-
 }
 
 
@@ -66,7 +65,7 @@ cChunkMap::~cChunkMap()
 
 void cChunkMap::RemoveLayer(cChunkLayer * a_Layer)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	m_Layers.erase(std::pair<int, int>(a_Layer->GetX(), a_Layer->GetZ()));
 }
 
@@ -76,7 +75,7 @@ void cChunkMap::RemoveLayer(cChunkLayer * a_Layer)
 
 cChunkMap::cChunkLayer * cChunkMap::GetLayer(int a_LayerX, int a_LayerZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	auto it = m_Layers.find(std::pair<int, int>(a_LayerX, a_LayerZ));
 	if (it !=m_Layers.end())
 	{
@@ -105,6 +104,7 @@ cChunkMap::cChunkLayer * cChunkMap::GetLayer(int a_LayerX, int a_LayerZ)
 
 cChunkMap::cChunkLayer * cChunkMap::FindLayerForChunk(int a_ChunkX, int a_ChunkZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	const int LayerX = FAST_FLOOR_DIV(a_ChunkX, LAYER_SIZE);
 	const int LayerZ = FAST_FLOOR_DIV(a_ChunkZ, LAYER_SIZE);
 	return FindLayer(LayerX, LayerZ);
@@ -116,7 +116,7 @@ cChunkMap::cChunkLayer * cChunkMap::FindLayerForChunk(int a_ChunkX, int a_ChunkZ
 
 cChunkMap::cChunkLayer * cChunkMap::FindLayer(int a_LayerX, int a_LayerZ)
 {
-	ASSERT(m_CSLayers.IsLockedByCurrentThread());
+	ASSERT(GetWorld()->IsInTickThread());
 
 	auto it = m_Layers.find(std::pair<int, int>(a_LayerX, a_LayerZ));
 	if (it != m_Layers.end())
@@ -135,6 +135,7 @@ cChunkMap::cChunkLayer * cChunkMap::FindLayer(int a_LayerX, int a_LayerZ)
 
 cChunkMap::cChunkLayer * cChunkMap::GetLayerForChunk(int a_ChunkX, int a_ChunkZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	const int LayerX = FAST_FLOOR_DIV(a_ChunkX, LAYER_SIZE);
 	const int LayerZ = FAST_FLOOR_DIV(a_ChunkZ, LAYER_SIZE);
 	return GetLayer(LayerX, LayerZ);
@@ -146,7 +147,7 @@ cChunkMap::cChunkLayer * cChunkMap::GetLayerForChunk(int a_ChunkX, int a_ChunkZ)
 
 cChunkPtr cChunkMap::GetChunk(int a_ChunkX, int a_ChunkZ)
 {
-	ASSERT(m_CSLayers.IsLockedByCurrentThread());  // m_CSLayers should already be locked by the operation that called us
+	ASSERT(GetWorld()->IsInTickThread());
 
 	cChunkLayer * Layer = GetLayerForChunk(a_ChunkX, a_ChunkZ);
 	if (Layer == nullptr)
@@ -175,7 +176,7 @@ cChunkPtr cChunkMap::GetChunk(int a_ChunkX, int a_ChunkZ)
 
 cChunkPtr cChunkMap::GetChunkNoGen(int a_ChunkX, int a_ChunkZ)
 {
-	ASSERT(m_CSLayers.IsLockedByCurrentThread());  // m_CSLayers should already be locked by the operation that called us
+	ASSERT(GetWorld()->IsInTickThread());
 
 	cChunkLayer * Layer = GetLayerForChunk(a_ChunkX, a_ChunkZ);
 	if (Layer == nullptr)
@@ -204,7 +205,7 @@ cChunkPtr cChunkMap::GetChunkNoGen(int a_ChunkX, int a_ChunkZ)
 
 cChunkPtr cChunkMap::GetChunkNoLoad( int a_ChunkX, int a_ChunkZ)
 {
-	ASSERT(m_CSLayers.IsLockedByCurrentThread());  // m_CSLayers should already be locked by the operation that called us
+	ASSERT(GetWorld()->IsInTickThread());
 
 	cChunkLayer * Layer = GetLayerForChunk( a_ChunkX, a_ChunkZ);
 	if (Layer == nullptr)
@@ -222,8 +223,7 @@ cChunkPtr cChunkMap::GetChunkNoLoad( int a_ChunkX, int a_ChunkZ)
 
 bool cChunkMap::LockedGetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE & a_BlockType, NIBBLETYPE & a_BlockMeta)
 {
-	// We already have m_CSLayers locked since this can be called only from within the tick thread
-	ASSERT(m_CSLayers.IsLockedByCurrentThread());
+	ASSERT(GetWorld()->IsInTickThread());
 
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
@@ -244,8 +244,7 @@ bool cChunkMap::LockedGetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTY
 
 bool cChunkMap::LockedGetBlockType(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE & a_BlockType)
 {
-	// We already have m_CSLayers locked since this can be called only from within the tick thread
-	ASSERT(m_CSLayers.IsLockedByCurrentThread());
+	ASSERT(GetWorld()->IsInTickThread());
 
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
@@ -265,8 +264,7 @@ bool cChunkMap::LockedGetBlockType(int a_BlockX, int a_BlockY, int a_BlockZ, BLO
 
 bool cChunkMap::LockedGetBlockMeta(int a_BlockX, int a_BlockY, int a_BlockZ, NIBBLETYPE & a_BlockMeta)
 {
-	// We already have m_CSLayers locked since this can be called only from within the tick thread
-	ASSERT(m_CSLayers.IsLockedByCurrentThread());
+	ASSERT(GetWorld()->IsInTickThread());
 
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
@@ -286,7 +284,8 @@ bool cChunkMap::LockedGetBlockMeta(int a_BlockX, int a_BlockY, int a_BlockZ, NIB
 
 bool cChunkMap::LockedSetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE   a_BlockType, NIBBLETYPE   a_BlockMeta)
 {
-	// We already have m_CSLayers locked since this can be called only from within the tick thread
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
@@ -305,7 +304,8 @@ bool cChunkMap::LockedSetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTY
 
 bool cChunkMap::LockedFastSetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta)
 {
-	// We already have m_CSLayers locked since this can be called only from within the tick thread
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
@@ -324,7 +324,7 @@ bool cChunkMap::LockedFastSetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLO
 
 cChunk * cChunkMap::FindChunk(int a_ChunkX, int a_ChunkZ)
 {
-	ASSERT(m_CSLayers.IsLockedByCurrentThread());
+	ASSERT(GetWorld()->IsInTickThread());
 
 	cChunkLayer * Layer = FindLayerForChunk(a_ChunkX, a_ChunkZ);
 	if (Layer == nullptr)
@@ -340,7 +340,8 @@ cChunk * cChunkMap::FindChunk(int a_ChunkX, int a_ChunkZ)
 
 void cChunkMap::BroadcastAttachEntity(const cEntity & a_Entity, const cEntity & a_Vehicle)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -356,7 +357,8 @@ void cChunkMap::BroadcastAttachEntity(const cEntity & a_Entity, const cEntity & 
 
 void cChunkMap::BroadcastBlockAction(int a_BlockX, int a_BlockY, int a_BlockZ, char a_Byte1, char a_Byte2, BLOCKTYPE a_BlockType, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int x, z, ChunkX, ChunkZ;
 	x = a_BlockX;
 	z = a_BlockZ;
@@ -376,7 +378,8 @@ void cChunkMap::BroadcastBlockAction(int a_BlockX, int a_BlockY, int a_BlockZ, c
 
 void cChunkMap::BroadcastBlockBreakAnimation(UInt32 a_EntityID, int a_BlockX, int a_BlockY, int a_BlockZ, char a_Stage, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 
 	cChunkDef::BlockToChunk(a_BlockX, a_BlockZ, ChunkX, ChunkZ);
@@ -395,7 +398,8 @@ void cChunkMap::BroadcastBlockBreakAnimation(UInt32 a_EntityID, int a_BlockX, in
 
 void cChunkMap::BroadcastBlockEntity(int a_BlockX, int a_BlockY, int a_BlockZ, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 	cChunkDef::BlockToChunk(a_BlockX, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
@@ -412,7 +416,8 @@ void cChunkMap::BroadcastBlockEntity(int a_BlockX, int a_BlockY, int a_BlockZ, c
 
 void cChunkMap::BroadcastCollectEntity(const cEntity & a_Entity, const cPlayer & a_Player, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -428,7 +433,8 @@ void cChunkMap::BroadcastCollectEntity(const cEntity & a_Entity, const cPlayer &
 
 void cChunkMap::BroadcastDestroyEntity(const cEntity & a_Entity, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -444,7 +450,8 @@ void cChunkMap::BroadcastDestroyEntity(const cEntity & a_Entity, const cClientHa
 
 void cChunkMap::BroadcastDetachEntity(const cEntity & a_Entity, const cEntity & a_PreviousVehicle)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -460,7 +467,8 @@ void cChunkMap::BroadcastDetachEntity(const cEntity & a_Entity, const cEntity & 
 
 void cChunkMap::BroadcastEntityEffect(const cEntity & a_Entity, int a_EffectID, int a_Amplifier, short a_Duration, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -476,7 +484,8 @@ void cChunkMap::BroadcastEntityEffect(const cEntity & a_Entity, int a_EffectID, 
 
 void cChunkMap::BroadcastEntityEquipment(const cEntity & a_Entity, short a_SlotNum, const cItem & a_Item, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -492,7 +501,8 @@ void cChunkMap::BroadcastEntityEquipment(const cEntity & a_Entity, short a_SlotN
 
 void cChunkMap::BroadcastEntityHeadLook(const cEntity & a_Entity, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -508,7 +518,8 @@ void cChunkMap::BroadcastEntityHeadLook(const cEntity & a_Entity, const cClientH
 
 void cChunkMap::BroadcastEntityLook(const cEntity & a_Entity, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -524,7 +535,8 @@ void cChunkMap::BroadcastEntityLook(const cEntity & a_Entity, const cClientHandl
 
 void cChunkMap::BroadcastEntityMetadata(const cEntity & a_Entity, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -540,7 +552,8 @@ void cChunkMap::BroadcastEntityMetadata(const cEntity & a_Entity, const cClientH
 
 void cChunkMap::BroadcastEntityRelMove(const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -556,7 +569,8 @@ void cChunkMap::BroadcastEntityRelMove(const cEntity & a_Entity, char a_RelX, ch
 
 void cChunkMap::BroadcastEntityRelMoveLook(const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -572,7 +586,8 @@ void cChunkMap::BroadcastEntityRelMoveLook(const cEntity & a_Entity, char a_RelX
 
 void cChunkMap::BroadcastEntityStatus(const cEntity & a_Entity, char a_Status, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -588,7 +603,8 @@ void cChunkMap::BroadcastEntityStatus(const cEntity & a_Entity, char a_Status, c
 
 void cChunkMap::BroadcastEntityVelocity(const cEntity & a_Entity, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -604,7 +620,8 @@ void cChunkMap::BroadcastEntityVelocity(const cEntity & a_Entity, const cClientH
 
 void cChunkMap::BroadcastEntityAnimation(const cEntity & a_Entity, char a_Animation, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -620,7 +637,8 @@ void cChunkMap::BroadcastEntityAnimation(const cEntity & a_Entity, char a_Animat
 
 void cChunkMap::BroadcastParticleEffect(const AString & a_ParticleName, float a_SrcX, float a_SrcY, float a_SrcZ, float a_OffsetX, float a_OffsetY, float a_OffsetZ, float a_ParticleData, int a_ParticleAmount, cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 
 	cChunkDef::BlockToChunk(FloorC(a_SrcX), FloorC(a_SrcZ), ChunkX, ChunkZ);
@@ -639,7 +657,8 @@ void cChunkMap::BroadcastParticleEffect(const AString & a_ParticleName, float a_
 
 void cChunkMap::BroadcastRemoveEntityEffect(const cEntity & a_Entity, int a_EffectID, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
@@ -656,7 +675,8 @@ void cChunkMap::BroadcastRemoveEntityEffect(const cEntity & a_Entity, int a_Effe
 
 void cChunkMap::BroadcastSoundEffect(const AString & a_SoundName, double a_X, double a_Y, double a_Z, float a_Volume, float a_Pitch, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 
 	cChunkDef::BlockToChunk(FloorC(std::floor(a_X)), FloorC(std::floor(a_Z)), ChunkX, ChunkZ);
@@ -675,7 +695,8 @@ void cChunkMap::BroadcastSoundEffect(const AString & a_SoundName, double a_X, do
 
 void cChunkMap::BroadcastSoundParticleEffect(const EffectID a_EffectID, int a_SrcX, int a_SrcY, int a_SrcZ, int a_Data, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 
 	cChunkDef::BlockToChunk(a_SrcX, a_SrcZ, ChunkX, ChunkZ);
@@ -694,7 +715,8 @@ void cChunkMap::BroadcastSoundParticleEffect(const EffectID a_EffectID, int a_Sr
 
 void cChunkMap::BroadcastSpawnEntity(cEntity & a_Entity, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_Entity.GetChunkX(), a_Entity.GetChunkZ());
 	if (Chunk == nullptr)
 	{
@@ -710,7 +732,8 @@ void cChunkMap::BroadcastSpawnEntity(cEntity & a_Entity, const cClientHandle * a
 
 void cChunkMap::BroadcastThunderbolt(int a_BlockX, int a_BlockY, int a_BlockZ, const cClientHandle * a_Exclude)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 	cChunkDef::BlockToChunk(a_BlockX, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
@@ -728,7 +751,8 @@ void cChunkMap::BroadcastThunderbolt(int a_BlockX, int a_BlockY, int a_BlockZ, c
 
 void cChunkMap::BroadcastUseBed(const cEntity & a_Entity, int a_BlockX, int a_BlockY, int a_BlockZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 
 	cChunkDef::BlockToChunk(a_BlockX, a_BlockZ, ChunkX, ChunkZ);
@@ -747,7 +771,8 @@ void cChunkMap::BroadcastUseBed(const cEntity & a_Entity, int a_BlockX, int a_Bl
 
 void cChunkMap::SendBlockEntity(int a_BlockX, int a_BlockY, int a_BlockZ, cClientHandle & a_Client)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 	cChunkDef::BlockToChunk(a_BlockX, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
@@ -764,8 +789,9 @@ void cChunkMap::SendBlockEntity(int a_BlockX, int a_BlockY, int a_BlockZ, cClien
 
 bool cChunkMap::UseBlockEntity(cPlayer * a_Player, int a_BlockX, int a_BlockY, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	// a_Player rclked block entity at the coords specified, handle it
-	cCSLock Lock(m_CSLayers);
+
 	int ChunkX, ChunkZ;
 	cChunkDef::BlockToChunk(a_BlockX, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
@@ -782,7 +808,8 @@ bool cChunkMap::UseBlockEntity(cPlayer * a_Player, int a_BlockX, int a_BlockY, i
 
 bool cChunkMap::DoWithChunk(int a_ChunkX, int a_ChunkZ, cChunkCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 	if (Chunk == nullptr)
 	{
@@ -794,6 +821,7 @@ bool cChunkMap::DoWithChunk(int a_ChunkX, int a_ChunkZ, cChunkCallback & a_Callb
 
 bool cChunkMap::DoWithChunkAt(Vector3i a_BlockPos, std::function<bool(cChunk &)> a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::BlockToChunk(a_BlockPos.x, a_BlockPos.z, ChunkX, ChunkZ);
 	struct cCallBackWrapper : cChunkCallback
@@ -819,7 +847,8 @@ bool cChunkMap::DoWithChunkAt(Vector3i a_BlockPos, std::function<bool(cChunk &)>
 
 void cChunkMap::WakeUpSimulators(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 	cChunkDef::BlockToChunk(a_BlockX, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
@@ -836,6 +865,7 @@ void cChunkMap::WakeUpSimulators(int a_BlockX, int a_BlockY, int a_BlockZ)
 
 void cChunkMap::WakeUpSimulatorsInArea(int a_MinBlockX, int a_MaxBlockX, int a_MinBlockY, int a_MaxBlockY, int a_MinBlockZ, int a_MaxBlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	// Limit the Y coords:
 	a_MinBlockY = std::max(a_MinBlockY, 0);
 	a_MaxBlockY = std::min(a_MaxBlockY, cChunkDef::Height - 1);
@@ -844,7 +874,7 @@ void cChunkMap::WakeUpSimulatorsInArea(int a_MinBlockX, int a_MaxBlockX, int a_M
 	int MinChunkX, MinChunkZ, MaxChunkX, MaxChunkZ;
 	cChunkDef::BlockToChunk(a_MinBlockX, a_MinBlockZ, MinChunkX, MinChunkZ);
 	cChunkDef::BlockToChunk(a_MaxBlockX, a_MaxBlockZ, MaxChunkX, MaxChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	for (int z = MinChunkZ; z <= MaxChunkZ; z++)
 	{
 		int MinZ = std::max(a_MinBlockZ, z * cChunkDef::Width);
@@ -878,7 +908,10 @@ void cChunkMap::WakeUpSimulatorsInArea(int a_MinBlockX, int a_MaxBlockX, int a_M
 
 void cChunkMap::MarkChunkDirty(int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -893,7 +926,8 @@ void cChunkMap::MarkChunkDirty(int a_ChunkX, int a_ChunkZ)
 
 void cChunkMap::MarkChunkSaving(int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -908,7 +942,8 @@ void cChunkMap::MarkChunkSaving(int a_ChunkX, int a_ChunkZ)
 
 void cChunkMap::MarkChunkSaved (int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -926,7 +961,8 @@ void cChunkMap::SetChunkData(cSetChunkData & a_SetChunkData)
 	int ChunkX = a_SetChunkData.GetChunkX();
 	int ChunkZ = a_SetChunkData.GetChunkZ();
 	{
-		cCSLock Lock(m_CSLayers);
+		ASSERT(GetWorld()->IsInTickThread());
+
 		cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
 		if (Chunk == nullptr)
 		{
@@ -971,7 +1007,8 @@ void cChunkMap::ChunkLighted(
 	const cChunkDef::BlockNibbles & a_SkyLight
 )
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 	if (Chunk == nullptr)
 	{
@@ -987,7 +1024,8 @@ void cChunkMap::ChunkLighted(
 
 bool cChunkMap::GetChunkData(int a_ChunkX, int a_ChunkZ, cChunkDataCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -1003,7 +1041,8 @@ bool cChunkMap::GetChunkData(int a_ChunkX, int a_ChunkZ, cChunkDataCallback & a_
 
 bool cChunkMap::GetChunkBlockTypes(int a_ChunkX, int a_ChunkZ, BLOCKTYPE * a_BlockTypes)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -1019,7 +1058,8 @@ bool cChunkMap::GetChunkBlockTypes(int a_ChunkX, int a_ChunkZ, BLOCKTYPE * a_Blo
 
 bool cChunkMap::IsChunkQueued(int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 	return (Chunk != nullptr) && Chunk->IsQueued();
 }
@@ -1030,7 +1070,8 @@ bool cChunkMap::IsChunkQueued(int a_ChunkX, int a_ChunkZ)
 
 bool cChunkMap::IsChunkValid(int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 	return (Chunk != nullptr) && Chunk->IsValid();
 }
@@ -1041,7 +1082,8 @@ bool cChunkMap::IsChunkValid(int a_ChunkX, int a_ChunkZ)
 
 bool cChunkMap::HasChunkAnyClients(int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	return (Chunk != nullptr) && Chunk->HasAnyClients();
 }
@@ -1054,7 +1096,7 @@ int  cChunkMap::GetHeight(int a_BlockX, int a_BlockZ)
 {
 	for (;;)
 	{
-		cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 		int ChunkX, ChunkZ, BlockY = 0;
 		cChunkDef::AbsoluteToRelative(a_BlockX, BlockY, a_BlockZ, ChunkX, ChunkZ);
 		cChunkPtr Chunk = GetChunk(ChunkX, ChunkZ);
@@ -1069,7 +1111,6 @@ int  cChunkMap::GetHeight(int a_BlockX, int a_BlockZ)
 		}
 
 		// The chunk is not valid, wait for it to become valid:
-		cCSUnlock Unlock(Lock);
 		m_evtChunkValid.Wait();
 	}  // while (true)
 }
@@ -1080,8 +1121,9 @@ int  cChunkMap::GetHeight(int a_BlockX, int a_BlockZ)
 
 bool cChunkMap::TryGetHeight(int a_BlockX, int a_BlockZ, int & a_Height)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	// Returns false if chunk not loaded / generated
-	cCSLock Lock(m_CSLayers);
+
 	int ChunkX, ChunkZ, BlockY = 0;
 	cChunkDef::AbsoluteToRelative(a_BlockX, BlockY, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
@@ -1099,7 +1141,8 @@ bool cChunkMap::TryGetHeight(int a_BlockX, int a_BlockZ, int & a_Height)
 
 void cChunkMap::SetBlocks(const sSetBlockVector & a_Blocks)
 {
-	cCSLock lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr chunk = nullptr;
 	int lastChunkX = 0x7fffffff;  // Bogus coords so that chunk is updated on first pass
 	int lastChunkZ = 0x7fffffff;
@@ -1127,6 +1170,7 @@ void cChunkMap::SetBlocks(const sSetBlockVector & a_Blocks)
 
 void cChunkMap::CollectPickupsByPlayer(cPlayer & a_Player)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int BlockX = static_cast<int>(a_Player.GetPosX());  // Truncating doesn't matter much; we're scanning entire chunks anyway
 	int BlockY = static_cast<int>(a_Player.GetPosY());
 	int BlockZ = static_cast<int>(a_Player.GetPosZ());
@@ -1138,7 +1182,7 @@ void cChunkMap::CollectPickupsByPlayer(cPlayer & a_Player)
 	// We suppose that each player keeps their chunks in memory, therefore it makes little sense to try to re-load or even generate them.
 	// The only time the chunks are not valid is when the player is downloading the initial world and they should not call this at that moment
 
-	cCSLock Lock(m_CSLayers);
+
 	GetChunkNoLoad(ChunkX, ChunkZ)->CollectPickupsByPlayer(a_Player);
 
 	// Check the neighboring chunks as well:
@@ -1154,12 +1198,13 @@ void cChunkMap::CollectPickupsByPlayer(cPlayer & a_Player)
 
 BLOCKTYPE cChunkMap::GetBlock(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int X = a_BlockX, Y = a_BlockY, Z = a_BlockZ;
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(X, Y, Z, ChunkX, ChunkZ);
 
 	// Query the chunk, if loaded:
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk(ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1174,12 +1219,13 @@ BLOCKTYPE cChunkMap::GetBlock(int a_BlockX, int a_BlockY, int a_BlockZ)
 
 NIBBLETYPE cChunkMap::GetBlockMeta(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int X = a_BlockX, Y = a_BlockY, Z = a_BlockZ;
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(X, Y, Z, ChunkX, ChunkZ);
 
 	// Query the chunk, if loaded:
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk(ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1194,10 +1240,11 @@ NIBBLETYPE cChunkMap::GetBlockMeta(int a_BlockX, int a_BlockY, int a_BlockZ)
 
 NIBBLETYPE cChunkMap::GetBlockSkyLight(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk( ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1212,10 +1259,11 @@ NIBBLETYPE cChunkMap::GetBlockSkyLight(int a_BlockX, int a_BlockY, int a_BlockZ)
 
 NIBBLETYPE cChunkMap::GetBlockBlockLight(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk( ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1230,11 +1278,12 @@ NIBBLETYPE cChunkMap::GetBlockBlockLight(int a_BlockX, int a_BlockY, int a_Block
 
 void cChunkMap::SetBlockMeta(int a_BlockX, int a_BlockY, int a_BlockZ, NIBBLETYPE a_BlockMeta, bool a_ShouldMarkDirty, bool a_ShouldInformClients)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 	// a_BlockXYZ now contains relative coords!
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk(ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1248,13 +1297,14 @@ void cChunkMap::SetBlockMeta(int a_BlockX, int a_BlockY, int a_BlockZ, NIBBLETYP
 
 void cChunkMap::SetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta, bool a_SendToClients)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	cChunkInterface ChunkInterface(this);
 	BlockHandler(GetBlock(a_BlockX, a_BlockY, a_BlockZ))->OnDestroyed(ChunkInterface, *m_World, a_BlockX, a_BlockY, a_BlockZ);
 
 	int ChunkX, ChunkZ, X = a_BlockX, Y = a_BlockY, Z = a_BlockZ;
 	cChunkDef::AbsoluteToRelative( X, Y, Z, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk( ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1270,10 +1320,11 @@ void cChunkMap::SetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE a_B
 
 bool cChunkMap::GetBlockTypeMeta(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE & a_BlockType, NIBBLETYPE & a_BlockMeta)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ, X = a_BlockX, Y = a_BlockY, Z = a_BlockZ;
 	cChunkDef::AbsoluteToRelative( X, Y, Z, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk( ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1289,10 +1340,11 @@ bool cChunkMap::GetBlockTypeMeta(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCK
 
 bool cChunkMap::GetBlockInfo(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE & a_BlockType, NIBBLETYPE & a_Meta, NIBBLETYPE & a_SkyLight, NIBBLETYPE & a_BlockLight)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ, X = a_BlockX, Y = a_BlockY, Z = a_BlockZ;
 	cChunkDef::AbsoluteToRelative( X, Y, Z, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk( ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1308,7 +1360,8 @@ bool cChunkMap::GetBlockInfo(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE
 
 void cChunkMap::ReplaceBlocks(const sSetBlockVector & a_Blocks, BLOCKTYPE a_FilterBlockType)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	for (sSetBlockVector::const_iterator itr = a_Blocks.begin(); itr != a_Blocks.end(); ++itr)
 	{
 		cChunkPtr Chunk = GetChunk(itr->m_ChunkX, itr->m_ChunkZ);
@@ -1329,7 +1382,8 @@ void cChunkMap::ReplaceBlocks(const sSetBlockVector & a_Blocks, BLOCKTYPE a_Filt
 
 void cChunkMap::ReplaceTreeBlocks(const sSetBlockVector & a_Blocks)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	for (sSetBlockVector::const_iterator itr = a_Blocks.begin(); itr != a_Blocks.end(); ++itr)
 	{
 		cChunkPtr Chunk = GetChunk(itr->m_ChunkX, itr->m_ChunkZ);
@@ -1363,10 +1417,11 @@ void cChunkMap::ReplaceTreeBlocks(const sSetBlockVector & a_Blocks)
 
 EMCSBiome cChunkMap::GetBiomeAt (int a_BlockX, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ, X = a_BlockX, Y = 0, Z = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(X, Y, Z, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk(ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1384,10 +1439,11 @@ EMCSBiome cChunkMap::GetBiomeAt (int a_BlockX, int a_BlockZ)
 
 bool cChunkMap::SetBiomeAt(int a_BlockX, int a_BlockZ, EMCSBiome a_Biome)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ, X = a_BlockX, Y = 0, Z = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(X, Y, Z, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunk(ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -1403,6 +1459,7 @@ bool cChunkMap::SetBiomeAt(int a_BlockX, int a_BlockZ, EMCSBiome a_Biome)
 
 bool cChunkMap::SetAreaBiome(int a_MinX, int a_MaxX, int a_MinZ, int a_MaxZ, EMCSBiome a_Biome)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	// Translate coords to relative:
 	int Y = 0;
 	int MinChunkX, MinChunkZ, MinX = a_MinX, MinZ = a_MinZ;
@@ -1412,7 +1469,7 @@ bool cChunkMap::SetAreaBiome(int a_MinX, int a_MaxX, int a_MinZ, int a_MaxZ, EMC
 
 	// Go through all chunks, set:
 	bool res = true;
-	cCSLock Lock(m_CSLayers);
+
 	for (int x = MinChunkX; x <= MaxChunkX; x++)
 	{
 		int MinRelX = (x == MinChunkX) ? MinX : 0;
@@ -1441,8 +1498,9 @@ bool cChunkMap::SetAreaBiome(int a_MinX, int a_MaxX, int a_MinZ, int a_MaxZ, EMC
 
 bool cChunkMap::GetBlocks(sSetBlockVector & a_Blocks, bool a_ContinueOnFailure)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	bool res = true;
-	cCSLock Lock(m_CSLayers);
+
 	for (sSetBlockVector::iterator itr = a_Blocks.begin(); itr != a_Blocks.end(); ++itr)
 	{
 		cChunkPtr Chunk = GetChunk(itr->m_ChunkX, itr->m_ChunkZ);
@@ -1467,22 +1525,18 @@ bool cChunkMap::GetBlocks(sSetBlockVector & a_Blocks, bool a_ContinueOnFailure)
 
 bool cChunkMap::DigBlock(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int PosX = a_BlockX, PosY = a_BlockY, PosZ = a_BlockZ, ChunkX, ChunkZ;
 
 	cChunkDef::AbsoluteToRelative(PosX, PosY, PosZ, ChunkX, ChunkZ);
-
+	cChunkPtr DestChunk = GetChunk( ChunkX, ChunkZ);
+	if ((DestChunk == nullptr) || !DestChunk->IsValid())
 	{
-		cCSLock Lock(m_CSLayers);
-		cChunkPtr DestChunk = GetChunk( ChunkX, ChunkZ);
-		if ((DestChunk == nullptr) || !DestChunk->IsValid())
-		{
-			return false;
-		}
-
-		DestChunk->SetBlock(PosX, PosY, PosZ, E_BLOCK_AIR, 0);
-		m_World->GetSimulatorManager()->WakeUp(a_BlockX, a_BlockY, a_BlockZ, DestChunk);
+		return false;
 	}
 
+	DestChunk->SetBlock(PosX, PosY, PosZ, E_BLOCK_AIR, 0);
+	m_World->GetSimulatorManager()->WakeUp(a_BlockX, a_BlockY, a_BlockZ, DestChunk);
 	return true;
 }
 
@@ -1492,14 +1546,14 @@ bool cChunkMap::DigBlock(int a_BlockX, int a_BlockY, int a_BlockZ)
 
 void cChunkMap::SendBlockTo(int a_X, int a_Y, int a_Z, cPlayer * a_Player)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_X, a_Y, a_Z, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
 	cChunkPtr Chunk = GetChunk(ChunkX, ChunkZ);
-	if ((Chunk != nullptr) && (Chunk->IsValid()))
+	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
-		Chunk->SendBlockTo(a_X, a_Y, a_Z, a_Player->GetClientHandle());
+		Chunk->SendBlockTo(a_X, a_Y, a_Z, a_Player->GetClientHandlePtr());
 	}
 }
 
@@ -1509,7 +1563,8 @@ void cChunkMap::SendBlockTo(int a_X, int a_Y, int a_Z, cPlayer * a_Player)
 
 void cChunkMap::CompareChunkClients(int a_ChunkX1, int a_ChunkZ1, int a_ChunkX2, int a_ChunkZ2, cClientDiffCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk1 = GetChunkNoGen(a_ChunkX1, a_ChunkZ1);
 	if (Chunk1 == nullptr)
 	{
@@ -1530,16 +1585,15 @@ void cChunkMap::CompareChunkClients(int a_ChunkX1, int a_ChunkZ1, int a_ChunkX2,
 
 void cChunkMap::CompareChunkClients(cChunk * a_Chunk1, cChunk * a_Chunk2, cClientDiffCallback & a_Callback)
 {
-	cClientHandleList Clients1(a_Chunk1->GetAllClients());
-	cClientHandleList Clients2(a_Chunk2->GetAllClients());
+	ASSERT(GetWorld()->IsInTickThread());
 
 	// Find "removed" clients:
-	for (cClientHandleList::iterator itr1 = Clients1.begin(); itr1 != Clients1.end(); ++itr1)
+	for (const auto & LhsClient : a_Chunk1->GetAllStrongClientPtrs())
 	{
 		bool Found = false;
-		for (cClientHandleList::iterator itr2 = Clients2.begin(); itr2 != Clients2.end(); ++itr2)
+		for (const auto & RhsClient : a_Chunk2->GetAllStrongClientPtrs())
 		{
-			if (*itr1 == *itr2)
+			if (LhsClient == RhsClient)
 			{
 				Found = true;
 				break;
@@ -1547,17 +1601,17 @@ void cChunkMap::CompareChunkClients(cChunk * a_Chunk1, cChunk * a_Chunk2, cClien
 		}  // for itr2 - Clients2[]
 		if (!Found)
 		{
-			a_Callback.Removed(*itr1);
+			a_Callback.Removed(LhsClient.get());
 		}
 	}  // for itr1 - Clients1[]
 
 	// Find "added" clients:
-	for (cClientHandleList::iterator itr2 = Clients2.begin(); itr2 != Clients2.end(); ++itr2)
+	for (const auto & RhsClient : a_Chunk2->GetAllStrongClientPtrs())
 	{
 		bool Found = false;
-		for (cClientHandleList::iterator itr1 = Clients1.begin(); itr1 != Clients1.end(); ++itr1)
+		for (const auto & LhsClient : a_Chunk1->GetAllStrongClientPtrs())
 		{
-			if (*itr1 == *itr2)
+			if (LhsClient == RhsClient)
 			{
 				Found = true;
 				break;
@@ -1565,7 +1619,7 @@ void cChunkMap::CompareChunkClients(cChunk * a_Chunk1, cChunk * a_Chunk2, cClien
 		}  // for itr1 - Clients1[]
 		if (!Found)
 		{
-			a_Callback.Added(*itr2);
+			a_Callback.Added(RhsClient.get());
 		}
 	}  // for itr2 - Clients2[]
 }
@@ -1574,9 +1628,10 @@ void cChunkMap::CompareChunkClients(cChunk * a_Chunk1, cChunk * a_Chunk2, cClien
 
 
 
-bool cChunkMap::AddChunkClient(int a_ChunkX, int a_ChunkZ, cClientHandle * a_Client)
+bool cChunkMap::AddChunkClient(int a_ChunkX, int a_ChunkZ, const std::shared_ptr<cClientHandle> & a_Client)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunk(a_ChunkX, a_ChunkZ);
 	if (Chunk == nullptr)
 	{
@@ -1589,9 +1644,10 @@ bool cChunkMap::AddChunkClient(int a_ChunkX, int a_ChunkZ, cClientHandle * a_Cli
 
 
 
-void cChunkMap::RemoveChunkClient(int a_ChunkX, int a_ChunkZ, cClientHandle * a_Client)
+void cChunkMap::RemoveChunkClient(int a_ChunkX, int a_ChunkZ, const std::shared_ptr<cClientHandle> & a_Client)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if (Chunk == nullptr)
 	{
@@ -1603,55 +1659,19 @@ void cChunkMap::RemoveChunkClient(int a_ChunkX, int a_ChunkZ, cClientHandle * a_
 
 
 
-
-void cChunkMap::RemoveClientFromChunks(cClientHandle * a_Client)
+void cChunkMap::AddEntity(std::unique_ptr<cEntity> a_Entity)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 
-	for (auto & itr : m_Layers)
-	{
-		cChunkLayer & Layer = itr.second;
-		Layer.RemoveClient(a_Client);
-	}  // for itr - m_Layers[]
-}
-
-
-
-
-
-void cChunkMap::AddEntity(cEntity * a_Entity)
-{
-	cCSLock Lock(m_CSLayers);
 	cChunkPtr Chunk = GetChunk(a_Entity->GetChunkX(), a_Entity->GetChunkZ());
 	if (Chunk == nullptr)  // This will assert inside GetChunk in Debug builds
 	{
 		LOGWARNING("Entity at %p (%s, ID %d) spawning in a non-existent chunk, the entity is lost.",
-			static_cast<void *>(a_Entity), a_Entity->GetClass(), a_Entity->GetUniqueID()
+			static_cast<void *>(a_Entity.get()), a_Entity->GetClass(), a_Entity->GetUniqueID()
 		);
 		return;
 	}
-	Chunk->AddEntity(a_Entity);
-}
-
-
-
-
-
-void cChunkMap::AddEntityIfNotPresent(cEntity * a_Entity)
-{
-	cCSLock Lock(m_CSLayers);
-	cChunkPtr Chunk = GetChunk(a_Entity->GetChunkX(), a_Entity->GetChunkZ());
-	if (Chunk == nullptr)  // This will assert inside GetChunk in Debug builds
-	{
-		LOGWARNING("Entity at %p (%s, ID %d) spawning in a non-existent chunk, the entity is lost.",
-			static_cast<void *>(a_Entity), a_Entity->GetClass(), a_Entity->GetUniqueID()
-		);
-		return;
-	}
-	if (!Chunk->HasEntity(a_Entity->GetUniqueID()))
-	{
-		Chunk->AddEntity(a_Entity);
-	}
+	Chunk->AddEntity(std::move(a_Entity));
 }
 
 
@@ -1660,7 +1680,7 @@ void cChunkMap::AddEntityIfNotPresent(cEntity * a_Entity)
 
 bool cChunkMap::HasEntity(UInt32 a_UniqueID)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	for (auto & itr : m_Layers)
 	{
 		cChunkLayer & Layer = itr.second;
@@ -1676,26 +1696,9 @@ bool cChunkMap::HasEntity(UInt32 a_UniqueID)
 
 
 
-void cChunkMap::RemoveEntity(cEntity * a_Entity)
-{
-	cCSLock Lock(m_CSLayers);
-	cChunkPtr Chunk = a_Entity->GetParentChunk();
-
-	// Even if a chunk is not valid, it may still contain entities such as players; make sure to remove them (#1190)
-	if (Chunk == nullptr)
-	{
-		return;
-	}
-	Chunk->RemoveEntity(a_Entity);
-}
-
-
-
-
-
 bool cChunkMap::ForEachEntity(cEntityCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	for (auto & itr : m_Layers)
 	{
 		cChunkLayer & Layer = itr.second;
@@ -1713,7 +1716,8 @@ bool cChunkMap::ForEachEntity(cEntityCallback & a_Callback)
 
 bool cChunkMap::ForEachEntityInChunk(int a_ChunkX, int a_ChunkZ, cEntityCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -1728,6 +1732,7 @@ bool cChunkMap::ForEachEntityInChunk(int a_ChunkX, int a_ChunkZ, cEntityCallback
 
 bool cChunkMap::ForEachEntityInBox(const cBoundingBox & a_Box, cEntityCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	// Calculate the chunk range for the box:
 	int MinChunkX = FloorC(a_Box.GetMinX() / cChunkDef::Width);
 	int MinChunkZ = FloorC(a_Box.GetMinZ() / cChunkDef::Width);
@@ -1735,7 +1740,7 @@ bool cChunkMap::ForEachEntityInBox(const cBoundingBox & a_Box, cEntityCallback &
 	int MaxChunkZ = FloorC((a_Box.GetMaxZ() + cChunkDef::Width) / cChunkDef::Width);
 
 	// Iterate over each chunk in the range:
-	cCSLock Lock(m_CSLayers);
+
 	for (int z = MinChunkZ; z <= MaxChunkZ; z++)
 	{
 		for (int x = MinChunkX; x <= MaxChunkX; x++)
@@ -1760,6 +1765,7 @@ bool cChunkMap::ForEachEntityInBox(const cBoundingBox & a_Box, cEntityCallback &
 
 void cChunkMap::DoExplosionAt(double a_ExplosionSize, double a_BlockX, double a_BlockY, double a_BlockZ, cVector3iArray & a_BlocksAffected)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	// Don't explode if outside of Y range (prevents the following test running into unallocated memory):
 	if (!cChunkDef::IsValidHeight(FloorC(a_BlockY)))
 	{
@@ -1956,7 +1962,8 @@ void cChunkMap::DoExplosionAt(double a_ExplosionSize, double a_BlockX, double a_
 
 bool cChunkMap::DoWithEntityByID(UInt32 a_UniqueID, cEntityCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	bool res = false;
 	for (auto & itr : m_Layers)
 	{
@@ -1975,7 +1982,8 @@ bool cChunkMap::DoWithEntityByID(UInt32 a_UniqueID, cEntityCallback & a_Callback
 
 bool cChunkMap::ForEachBlockEntityInChunk(int a_ChunkX, int a_ChunkZ, cBlockEntityCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -1990,7 +1998,6 @@ bool cChunkMap::ForEachBlockEntityInChunk(int a_ChunkX, int a_ChunkZ, cBlockEnti
 
 bool cChunkMap::ForEachBrewingstandInChunk(int a_ChunkX, int a_ChunkZ, cBrewingstandCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2005,7 +2012,8 @@ bool cChunkMap::ForEachBrewingstandInChunk(int a_ChunkX, int a_ChunkZ, cBrewings
 
 bool cChunkMap::ForEachChestInChunk(int a_ChunkX, int a_ChunkZ, cChestCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2020,7 +2028,8 @@ bool cChunkMap::ForEachChestInChunk(int a_ChunkX, int a_ChunkZ, cChestCallback &
 
 bool cChunkMap::ForEachDispenserInChunk(int a_ChunkX, int a_ChunkZ, cDispenserCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2035,7 +2044,8 @@ bool cChunkMap::ForEachDispenserInChunk(int a_ChunkX, int a_ChunkZ, cDispenserCa
 
 bool cChunkMap::ForEachDropperInChunk(int a_ChunkX, int a_ChunkZ, cDropperCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2050,7 +2060,8 @@ bool cChunkMap::ForEachDropperInChunk(int a_ChunkX, int a_ChunkZ, cDropperCallba
 
 bool cChunkMap::ForEachDropSpenserInChunk(int a_ChunkX, int a_ChunkZ, cDropSpenserCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2065,7 +2076,8 @@ bool cChunkMap::ForEachDropSpenserInChunk(int a_ChunkX, int a_ChunkZ, cDropSpens
 
 bool cChunkMap::ForEachFurnaceInChunk(int a_ChunkX, int a_ChunkZ, cFurnaceCallback & a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoGen(a_ChunkX, a_ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2080,10 +2092,11 @@ bool cChunkMap::ForEachFurnaceInChunk(int a_ChunkX, int a_ChunkZ, cFurnaceCallba
 
 bool cChunkMap::DoWithBlockEntityAt(int a_BlockX, int a_BlockY, int a_BlockZ, cBlockEntityCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2098,10 +2111,11 @@ bool cChunkMap::DoWithBlockEntityAt(int a_BlockX, int a_BlockY, int a_BlockZ, cB
 
 bool cChunkMap::DoWithBeaconAt(int a_BlockX, int a_BlockY, int a_BlockZ, cBeaconCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2119,7 +2133,6 @@ bool cChunkMap::DoWithBrewingstandAt(int a_BlockX, int a_BlockY, int a_BlockZ, c
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2134,10 +2147,11 @@ bool cChunkMap::DoWithBrewingstandAt(int a_BlockX, int a_BlockY, int a_BlockZ, c
 
 bool cChunkMap::DoWithChestAt(int a_BlockX, int a_BlockY, int a_BlockZ, cChestCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2152,10 +2166,11 @@ bool cChunkMap::DoWithChestAt(int a_BlockX, int a_BlockY, int a_BlockZ, cChestCa
 
 bool cChunkMap::DoWithDispenserAt(int a_BlockX, int a_BlockY, int a_BlockZ, cDispenserCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2170,10 +2185,11 @@ bool cChunkMap::DoWithDispenserAt(int a_BlockX, int a_BlockY, int a_BlockZ, cDis
 
 bool cChunkMap::DoWithDropperAt(int a_BlockX, int a_BlockY, int a_BlockZ, cDropperCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2188,10 +2204,11 @@ bool cChunkMap::DoWithDropperAt(int a_BlockX, int a_BlockY, int a_BlockZ, cDropp
 
 bool cChunkMap::DoWithDropSpenserAt(int a_BlockX, int a_BlockY, int a_BlockZ, cDropSpenserCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2206,10 +2223,11 @@ bool cChunkMap::DoWithDropSpenserAt(int a_BlockX, int a_BlockY, int a_BlockZ, cD
 
 bool cChunkMap::DoWithFurnaceAt(int a_BlockX, int a_BlockY, int a_BlockZ, cFurnaceCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2223,10 +2241,11 @@ bool cChunkMap::DoWithFurnaceAt(int a_BlockX, int a_BlockY, int a_BlockZ, cFurna
 
 bool cChunkMap::DoWithNoteBlockAt(int a_BlockX, int a_BlockY, int a_BlockZ, cNoteBlockCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2240,10 +2259,11 @@ bool cChunkMap::DoWithNoteBlockAt(int a_BlockX, int a_BlockY, int a_BlockZ, cNot
 
 bool cChunkMap::DoWithCommandBlockAt(int a_BlockX, int a_BlockY, int a_BlockZ, cCommandBlockCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2258,10 +2278,11 @@ bool cChunkMap::DoWithCommandBlockAt(int a_BlockX, int a_BlockY, int a_BlockZ, c
 
 bool cChunkMap::DoWithMobHeadAt(int a_BlockX, int a_BlockY, int a_BlockZ, cMobHeadCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2276,10 +2297,11 @@ bool cChunkMap::DoWithMobHeadAt(int a_BlockX, int a_BlockY, int a_BlockZ, cMobHe
 
 bool cChunkMap::DoWithFlowerPotAt(int a_BlockX, int a_BlockY, int a_BlockZ, cFlowerPotCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2294,10 +2316,11 @@ bool cChunkMap::DoWithFlowerPotAt(int a_BlockX, int a_BlockY, int a_BlockZ, cFlo
 
 bool cChunkMap::GetSignLines(int a_BlockX, int a_BlockY, int a_BlockZ, AString & a_Line1, AString & a_Line2, AString & a_Line3, AString & a_Line4)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
@@ -2312,7 +2335,8 @@ bool cChunkMap::GetSignLines(int a_BlockX, int a_BlockY, int a_BlockZ, AString &
 
 void cChunkMap::TouchChunk(int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	GetChunk(a_ChunkX, a_ChunkZ);
 }
 
@@ -2322,7 +2346,8 @@ void cChunkMap::TouchChunk(int a_ChunkX, int a_ChunkZ)
 
 void cChunkMap::PrepareChunk(int a_ChunkX, int a_ChunkZ, std::unique_ptr<cChunkCoordCallback> a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 
 	// If the chunk is not prepared, queue it in the lighting thread, that will do all the needed processing:
@@ -2345,7 +2370,8 @@ void cChunkMap::PrepareChunk(int a_ChunkX, int a_ChunkZ, std::unique_ptr<cChunkC
 
 bool cChunkMap::GenerateChunk(int a_ChunkX, int a_ChunkZ, cChunkCoordCallback * a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 	if (Chunk == nullptr)
 	{
@@ -2381,7 +2407,6 @@ bool cChunkMap::GenerateChunk(int a_ChunkX, int a_ChunkZ, cChunkCoordCallback * 
 				}
 
 				// The chunk failed to load, generate it:
-				cCSLock CBLock(m_ChunkMap.m_CSLayers);
 				cChunkPtr CBChunk = m_ChunkMap.GetChunkNoLoad(a_CBChunkX, a_CBChunkZ);
 
 				if (CBChunk == nullptr)
@@ -2421,7 +2446,8 @@ bool cChunkMap::GenerateChunk(int a_ChunkX, int a_ChunkZ, cChunkCoordCallback * 
 
 void cChunkMap::ChunkLoadFailed(int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 	if (Chunk == nullptr)
 	{
@@ -2436,7 +2462,8 @@ void cChunkMap::ChunkLoadFailed(int a_ChunkX, int a_ChunkZ)
 
 bool cChunkMap::SetSignLines(int a_BlockX, int a_BlockY, int a_BlockZ, const AString & a_Line1, const AString & a_Line2, const AString & a_Line3, const AString & a_Line4)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 	cChunkDef::BlockToChunk(a_BlockX, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
@@ -2453,7 +2480,8 @@ bool cChunkMap::SetSignLines(int a_BlockX, int a_BlockY, int a_BlockZ, const ASt
 
 void cChunkMap::MarkChunkRegenerating(int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 	if (Chunk == nullptr)
 	{
@@ -2469,7 +2497,8 @@ void cChunkMap::MarkChunkRegenerating(int a_ChunkX, int a_ChunkZ)
 
 bool cChunkMap::IsChunkLighted(int a_ChunkX, int a_ChunkZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 	if (Chunk == nullptr)
 	{
@@ -2485,8 +2514,9 @@ bool cChunkMap::IsChunkLighted(int a_ChunkX, int a_ChunkZ)
 
 bool cChunkMap::ForEachChunkInRect(int a_MinChunkX, int a_MaxChunkX, int a_MinChunkZ, int a_MaxChunkZ, cChunkDataCallback & a_Callback)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	bool Result = true;
-	cCSLock Lock(m_CSLayers);
+
 	for (int z = a_MinChunkZ; z <= a_MaxChunkZ; z++)
 	{
 		for (int x = a_MinChunkX; x <= a_MaxChunkX; x++)
@@ -2514,7 +2544,7 @@ bool cChunkMap::ForEachChunkInRect(int a_MinChunkX, int a_MaxChunkX, int a_MinCh
 
 bool cChunkMap::ForEachLoadedChunk(std::function<bool(int, int)> a_Callback)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	for (auto & itr: m_Layers)
 	{
 		cChunkLayer & Layer = itr.second;
@@ -2542,6 +2572,7 @@ bool cChunkMap::ForEachLoadedChunk(std::function<bool(int, int)> a_Callback)
 
 bool cChunkMap::WriteBlockArea(cBlockArea & a_Area, int a_MinBlockX, int a_MinBlockY, int a_MinBlockZ, int a_DataTypes)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	// Convert block coords to chunks coords:
 	int MinChunkX, MaxChunkX;
 	int MinChunkZ, MaxChunkZ;
@@ -2556,7 +2587,7 @@ bool cChunkMap::WriteBlockArea(cBlockArea & a_Area, int a_MinBlockX, int a_MinBl
 
 	// Iterate over chunks, write data into each:
 	bool Result = true;
-	cCSLock Lock(m_CSLayers);
+
 	for (int z = MinChunkZ; z <= MaxChunkZ; z++)
 	{
 		for (int x = MinChunkX; x <= MaxChunkX; x++)
@@ -2580,9 +2611,10 @@ bool cChunkMap::WriteBlockArea(cBlockArea & a_Area, int a_MinBlockX, int a_MinBl
 
 void cChunkMap::GetChunkStats(int & a_NumChunksValid, int & a_NumChunksDirty)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	a_NumChunksValid = 0;
 	a_NumChunksDirty = 0;
-	cCSLock Lock(m_CSLayers);
+
 	for (auto & itr : m_Layers)
 	{
 		cChunkLayer & Layer = itr.second;
@@ -2599,10 +2631,10 @@ void cChunkMap::GetChunkStats(int & a_NumChunksValid, int & a_NumChunksDirty)
 
 bool cChunkMap::GrowMelonPumpkin(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE a_BlockType, MTRand & a_Rand)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
 	if (Chunk != nullptr)
 	{
@@ -2617,10 +2649,11 @@ bool cChunkMap::GrowMelonPumpkin(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCK
 
 int cChunkMap::GrowSugarcane(int a_BlockX, int a_BlockY, int a_BlockZ, int a_NumBlocksToGrow)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
 	if (Chunk != nullptr)
 	{
@@ -2635,10 +2668,11 @@ int cChunkMap::GrowSugarcane(int a_BlockX, int a_BlockY, int a_BlockZ, int a_Num
 
 int cChunkMap::GrowCactus(int a_BlockX, int a_BlockY, int a_BlockZ, int a_NumBlocksToGrow)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
 	if (Chunk != nullptr)
 	{
@@ -2653,10 +2687,11 @@ int cChunkMap::GrowCactus(int a_BlockX, int a_BlockY, int a_BlockZ, int a_NumBlo
 
 bool cChunkMap::GrowTallGrass(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
 	if (Chunk != nullptr)
 	{
@@ -2671,10 +2706,11 @@ bool cChunkMap::GrowTallGrass(int a_BlockX, int a_BlockY, int a_BlockZ)
 
 void cChunkMap::SetNextBlockTick(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
 	if (Chunk != nullptr)
 	{
@@ -2687,7 +2723,7 @@ void cChunkMap::SetNextBlockTick(int a_BlockX, int a_BlockY, int a_BlockZ)
 
 void cChunkMap::CollectMobCensus(cMobCensus & a_ToFill)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	for (auto & itr: m_Layers)
 	{
 		cChunkLayer & Layer = itr.second;
@@ -2702,7 +2738,7 @@ void cChunkMap::CollectMobCensus(cMobCensus & a_ToFill)
 
 void cChunkMap::SpawnMobs(cMobSpawner & a_MobSpawner)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	for (auto & itr: m_Layers)
 	{
 		cChunkLayer & Layer = itr.second;
@@ -2716,7 +2752,7 @@ void cChunkMap::SpawnMobs(cMobSpawner & a_MobSpawner)
 
 void cChunkMap::Tick(std::chrono::milliseconds a_Dt)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	for (auto & itr: m_Layers)
 	{
 		cChunkLayer & Layer = itr.second;
@@ -2730,7 +2766,8 @@ void cChunkMap::Tick(std::chrono::milliseconds a_Dt)
 
 void cChunkMap::TickBlock(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
@@ -2747,7 +2784,7 @@ void cChunkMap::TickBlock(int a_BlockX, int a_BlockY, int a_BlockZ)
 
 void cChunkMap::UnloadUnusedChunks(void)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	for (auto & itr: m_Layers)
 	{
 		cChunkLayer & Layer = itr.second;
@@ -2761,7 +2798,7 @@ void cChunkMap::UnloadUnusedChunks(void)
 
 void cChunkMap::SaveAllChunks(void)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	for (auto & itr: m_Layers)
 	{
 		cChunkLayer & Layer = itr.second;
@@ -2775,7 +2812,8 @@ void cChunkMap::SaveAllChunks(void)
 
 int cChunkMap::GetNumChunks(void)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	int NumChunks = 0;
 	for (auto & itr: m_Layers)
 	{
@@ -2791,6 +2829,7 @@ int cChunkMap::GetNumChunks(void)
 
 void cChunkMap::ChunkValidated(void)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	m_evtChunkValid.Set();
 }
 
@@ -2800,11 +2839,12 @@ void cChunkMap::ChunkValidated(void)
 
 void cChunkMap::QueueTickBlock(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
+	ASSERT(GetWorld()->IsInTickThread());
 	int ChunkX, ChunkZ;
 	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
 	// a_BlockXYZ now contains relative coords!
 
-	cCSLock Lock(m_CSLayers);
+
 	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
 	if (Chunk != nullptr)
 	{
@@ -2818,7 +2858,8 @@ void cChunkMap::QueueTickBlock(int a_BlockX, int a_BlockY, int a_BlockZ)
 
 void cChunkMap::SetChunkAlwaysTicked(int a_ChunkX, int a_ChunkZ, bool a_AlwaysTicked)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
+
 	cChunkPtr Chunk = GetChunkNoLoad(a_ChunkX, a_ChunkZ);
 	if (Chunk != nullptr)
 	{
@@ -2963,7 +3004,7 @@ void cChunkMap::cChunkLayer::Tick(std::chrono::milliseconds a_Dt)
 
 
 
-void cChunkMap::cChunkLayer::RemoveClient(cClientHandle * a_Client)
+void cChunkMap::cChunkLayer::RemoveClient(const std::shared_ptr<cClientHandle> & a_Client)
 {
 	for (size_t i = 0; i < ARRAYCOUNT(m_Chunks); i++)
 	{
@@ -3122,7 +3163,7 @@ void cChunkMap::FastSetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE
 	int ChunkX, ChunkZ, X = a_BlockX, Y = a_BlockY, Z = a_BlockZ;
 	cChunkDef::AbsoluteToRelative(X, Y, Z, ChunkX, ChunkZ);
 
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 	cChunkPtr Chunk = GetChunk(ChunkX, ChunkZ);
 	if ((Chunk != nullptr) && Chunk->IsValid())
 	{
@@ -3136,11 +3177,11 @@ void cChunkMap::FastSetBlock(int a_BlockX, int a_BlockY, int a_BlockZ, BLOCKTYPE
 
 void cChunkMap::AddChunkStay(cChunkStay & a_ChunkStay)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 
 	// Add it to the list:
 	ASSERT(std::find(m_ChunkStays.begin(), m_ChunkStays.end(), &a_ChunkStay) == m_ChunkStays.end());  // Has not yet been added
-	m_ChunkStays.push_back(&a_ChunkStay);
+	m_ChunkStays.emplace_back(&a_ChunkStay);
 
 	// Schedule all chunks to be loaded / generated, and mark each as locked:
 	const cChunkCoordsVector & WantedChunks = a_ChunkStay.GetChunks();
@@ -3171,7 +3212,7 @@ void cChunkMap::AddChunkStay(cChunkStay & a_ChunkStay)
 /** Removes the specified cChunkStay descendant from the internal list of ChunkStays. */
 void cChunkMap::DelChunkStay(cChunkStay & a_ChunkStay)
 {
-	cCSLock Lock(m_CSLayers);
+	ASSERT(GetWorld()->IsInTickThread());
 
 	// Remove from the list of active chunkstays:
 	bool HasFound = false;

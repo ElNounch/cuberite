@@ -184,7 +184,7 @@ void cRoot::Start(std::unique_ptr<cSettingsRepositoryInterface> a_OverridesRepo)
 	LOGD("Starting Authenticator...");
 	m_Authenticator.Start(*settingsRepo);
 
-	LOGD("Starting worlds...");
+	LOGD("Starting words...");
 	StartWorlds();
 
 	if (settingsRepo->GetValueSetB("DeadlockDetect", "Enabled", true))
@@ -254,9 +254,6 @@ void cRoot::Start(std::unique_ptr<cSettingsRepositoryInterface> a_OverridesRepo)
 	LOGD("Unloading recipes...");
 	delete m_FurnaceRecipe;   m_FurnaceRecipe = nullptr;
 	delete m_CraftingRecipes; m_CraftingRecipes = nullptr;
-
-	LOG("Unloading worlds...");
-	UnloadWorlds();
 
 	LOGD("Stopping plugin manager...");
 	delete m_PluginManager; m_PluginManager = nullptr;
@@ -343,22 +340,20 @@ void cRoot::LoadGlobalSettings()
 
 void cRoot::LoadWorlds(cSettingsRepositoryInterface & a_Settings, bool a_IsNewIniFile)
 {
+	AString DefaultWorldName = a_Settings.GetValueSet("Worlds", "DefaultWorld", "world");
+	m_pDefaultWorld = m_WorldsByName.emplace(DefaultWorldName, cpp14::make_unique<cWorld>(DefaultWorldName)).first->second.get();
+
 	if (a_IsNewIniFile)
 	{
 		a_Settings.AddValue("Worlds", "DefaultWorld", "world");
 		a_Settings.AddValue("Worlds", "World", "world_nether");
 		a_Settings.AddValue("Worlds", "World", "world_end");
-		m_pDefaultWorld = new cWorld("world");
-		m_WorldsByName["world"] = m_pDefaultWorld;
-		m_WorldsByName["world_nether"] = new cWorld("world_nether", dimNether, "world");
-		m_WorldsByName["world_end"] = new cWorld("world_end", dimEnd, "world");
+		m_WorldsByName.emplace("world_nether", cpp14::make_unique<cWorld>("world_nether", dimNether, "world"));
+		m_WorldsByName.emplace("world_end", cpp14::make_unique<cWorld>("world_end", dimEnd, "world"));
 		return;
 	}
 
 	// First get the default world
-	AString DefaultWorldName = a_Settings.GetValueSet("Worlds", "DefaultWorld", "world");
-	m_pDefaultWorld = new cWorld(DefaultWorldName.c_str());
-	m_WorldsByName[ DefaultWorldName ] = m_pDefaultWorld;
 	auto Worlds = a_Settings.GetValues("Worlds");
 
 	// Fix servers that have default world configs created prior to #2815. See #2810.
@@ -452,7 +447,6 @@ void cRoot::LoadWorlds(cSettingsRepositoryInterface & a_Settings, bool a_IsNewIn
 			continue;
 		}
 		FoundAdditionalWorlds = true;
-		cWorld * NewWorld;
 		AString LowercaseName = StrToLower(WorldName);
 		AString NetherAppend="_nether";
 		AString EndAppend="_end";
@@ -469,7 +463,7 @@ void cRoot::LoadWorlds(cSettingsRepositoryInterface & a_Settings, bool a_IsNewIn
 			{
 				LinkTo = DefaultWorldName;
 			}
-			NewWorld = new cWorld(WorldName.c_str(), dimNether, LinkTo);
+			m_WorldsByName.emplace(WorldName, cpp14::make_unique<cWorld>(WorldName, dimNether, LinkTo));
 		}
 		// if the world is called x_end
 		else if ((LowercaseName.size() > EndAppend.size()) && (LowercaseName.substr(LowercaseName.size() - EndAppend.size()) == EndAppend))
@@ -483,13 +477,12 @@ void cRoot::LoadWorlds(cSettingsRepositoryInterface & a_Settings, bool a_IsNewIn
 			{
 				LinkTo = DefaultWorldName;
 			}
-			NewWorld = new cWorld(WorldName.c_str(), dimEnd, LinkTo);
+			m_WorldsByName.emplace(WorldName, cpp14::make_unique<cWorld>(WorldName, dimEnd, LinkTo));
 		}
 		else
 		{
-			NewWorld = new cWorld(WorldName.c_str());
+			m_WorldsByName.emplace(WorldName, cpp14::make_unique<cWorld>(WorldName));
 		}
-		m_WorldsByName[WorldName] = NewWorld;
 	}  // for i - Worlds
 
 	if (!FoundAdditionalWorlds)
@@ -508,11 +501,9 @@ void cRoot::LoadWorlds(cSettingsRepositoryInterface & a_Settings, bool a_IsNewIn
 
 void cRoot::StartWorlds(void)
 {
-	for (WorldMap::iterator itr = m_WorldsByName.begin(); itr != m_WorldsByName.end(); ++itr)
+	for (const auto & World : m_WorldsByName)
 	{
-		itr->second->Start();
-		itr->second->InitializeSpawn();
-		m_PluginManager->CallHookWorldStarted(*itr->second);
+		World.second->Start();
 	}
 }
 
@@ -522,24 +513,10 @@ void cRoot::StartWorlds(void)
 
 void cRoot::StopWorlds(void)
 {
-	for (WorldMap::iterator itr = m_WorldsByName.begin(); itr != m_WorldsByName.end(); ++itr)
+	for (const auto & World : m_WorldsByName)
 	{
-		itr->second->Stop();
+		World.second->Stop();
 	}
-}
-
-
-
-
-
-void cRoot::UnloadWorlds(void)
-{
-	m_pDefaultWorld = nullptr;
-	for (WorldMap::iterator itr = m_WorldsByName.begin(); itr != m_WorldsByName.end(); ++itr)
-	{
-		delete itr->second;
-	}
-	m_WorldsByName.clear();
 }
 
 
@@ -557,10 +534,10 @@ cWorld * cRoot::GetDefaultWorld()
 
 cWorld * cRoot::GetWorld(const AString & a_WorldName)
 {
-	WorldMap::iterator itr = m_WorldsByName.find(a_WorldName);
+	auto itr = m_WorldsByName.find(a_WorldName);
 	if (itr != m_WorldsByName.end())
 	{
-		return itr->second;
+		return itr->second.get();
 	}
 
 	return nullptr;
@@ -572,15 +549,11 @@ cWorld * cRoot::GetWorld(const AString & a_WorldName)
 
 bool cRoot::ForEachWorld(cWorldListCallback & a_Callback)
 {
-	for (WorldMap::iterator itr = m_WorldsByName.begin(), itr2 = itr; itr != m_WorldsByName.end(); itr = itr2)
+	for (const auto & World : m_WorldsByName)
 	{
-		++itr2;
-		if (itr->second != nullptr)
+		if (a_Callback.Item(World.second.get()))
 		{
-			if (a_Callback.Item(itr->second))
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 	return true;
@@ -674,9 +647,16 @@ void cRoot::AuthenticateUser(int a_ClientID, const AString & a_Name, const AStri
 int cRoot::GetTotalChunkCount(void)
 {
 	int res = 0;
-	for (WorldMap::iterator itr = m_WorldsByName.begin(); itr != m_WorldsByName.end(); ++itr)
+	for (const auto & World : m_WorldsByName)
 	{
-		res += itr->second->GetNumChunks();
+		int NumChunks;
+		World.second->QueueTask(
+			[&NumChunks](cWorld & a_World)
+			{
+				NumChunks = a_World.GetNumChunks();
+			}
+		).wait();
+		res += NumChunks;
 	}
 	return res;
 }
@@ -687,9 +667,9 @@ int cRoot::GetTotalChunkCount(void)
 
 void cRoot::SaveAllChunks(void)
 {
-	for (WorldMap::iterator itr = m_WorldsByName.begin(); itr != m_WorldsByName.end(); ++itr)
+	for (const auto & World : m_WorldsByName)
 	{
-		itr->second->QueueSaveAllChunks();
+		World.second->QueueSaveAllChunks();
 	}
 }
 
@@ -697,29 +677,29 @@ void cRoot::SaveAllChunks(void)
 
 void cRoot::SendPlayerLists(cPlayer * a_DestPlayer)
 {
-	for (const auto & itr : m_WorldsByName)
+	for (const auto & World : m_WorldsByName)
 	{
-		itr.second->SendPlayerList(a_DestPlayer);
-	}  // for itr - m_WorldsByName[]
+		World.second->SendPlayerList(a_DestPlayer);
+	}
 }
 
 
 
 void cRoot::BroadcastPlayerListsAddPlayer(const cPlayer & a_Player, const cClientHandle * a_Exclude)
 {
-	for (const auto & itr : m_WorldsByName)
+	for (const auto & World : m_WorldsByName)
 	{
-		itr.second->BroadcastPlayerListAddPlayer(a_Player);
-	}  // for itr - m_WorldsByName[]
+		World.second->BroadcastPlayerListAddPlayer(a_Player);
+	}
 }
 
 
 void cRoot::BroadcastChat(const AString & a_Message, eMessageType a_ChatPrefix)
 {
-	for (WorldMap::iterator itr = m_WorldsByName.begin(), end = m_WorldsByName.end(); itr != end; ++itr)
+	for (const auto & World : m_WorldsByName)
 	{
-		itr->second->BroadcastChat(a_Message, nullptr, a_ChatPrefix);
-	}  // for itr - m_WorldsByName[]
+		World.second->BroadcastChat(a_Message, nullptr, a_ChatPrefix);
+	}
 }
 
 
@@ -728,20 +708,19 @@ void cRoot::BroadcastChat(const AString & a_Message, eMessageType a_ChatPrefix)
 
 void cRoot::BroadcastChat(const cCompositeChat & a_Message)
 {
-	for (WorldMap::iterator itr = m_WorldsByName.begin(), end = m_WorldsByName.end(); itr != end; ++itr)
+	for (const auto & World : m_WorldsByName)
 	{
-		itr->second->BroadcastChat(a_Message);
-	}  // for itr - m_WorldsByName[]
+		World.second->BroadcastChat(a_Message);
+	}
 }
 
 
 
 bool cRoot::ForEachPlayer(cPlayerListCallback & a_Callback)
 {
-	for (WorldMap::iterator itr = m_WorldsByName.begin(), itr2 = itr; itr != m_WorldsByName.end(); itr = itr2)
+	for (const auto & World : m_WorldsByName)
 	{
-		++itr2;
-		if (!itr->second->ForEachPlayer(a_Callback))
+		if (!World.second->ForEachPlayer(a_Callback))
 		{
 			return false;
 		}
@@ -808,9 +787,9 @@ bool cRoot::FindAndDoWithPlayer(const AString & a_PlayerName, cPlayerListCallbac
 
 bool cRoot::DoWithPlayerByUUID(const AString & a_PlayerUUID, cPlayerListCallback & a_Callback)
 {
-	for (WorldMap::iterator itr = m_WorldsByName.begin(); itr !=  m_WorldsByName.end(); ++itr)
+	for (const auto & World : m_WorldsByName)
 	{
-		if (itr->second->DoWithPlayerByUUID(a_PlayerUUID, a_Callback))
+		if (World.second->DoWithPlayerByUUID(a_PlayerUUID, a_Callback))
 		{
 			return true;
 		}
@@ -824,7 +803,7 @@ bool cRoot::DoWithPlayerByUUID(const AString & a_PlayerUUID, cPlayerListCallback
 
 bool cRoot::DoWithPlayer(const AString & a_PlayerName, cPlayerListCallback & a_Callback)
 {
-	for (auto World : m_WorldsByName)
+	for (const auto & World : m_WorldsByName)
 	{
 		if (World.second->DoWithPlayer(a_PlayerName, a_Callback))
 		{
@@ -958,16 +937,23 @@ void cRoot::LogChunkStats(cCommandOutputCallback & a_Output)
 	int SumNumInLighting = 0;
 	int SumNumInGenerator = 0;
 	int SumMem = 0;
-	for (WorldMap::iterator itr = m_WorldsByName.begin(), end = m_WorldsByName.end(); itr != end; ++itr)
+	for (const auto & WorldEntry : m_WorldsByName)
 	{
-		cWorld * World = itr->second;
+		auto World = WorldEntry.second.get();
 		int NumInGenerator = World->GetGeneratorQueueLength();
 		int NumInSaveQueue = static_cast<int>(World->GetStorageSaveQueueLength());
 		int NumInLoadQueue = static_cast<int>(World->GetStorageLoadQueueLength());
 		int NumValid = 0;
 		int NumDirty = 0;
 		int NumInLighting = 0;
-		World->GetChunkStats(NumValid, NumDirty, NumInLighting);
+
+		World->QueueTask(
+			[&NumValid, &NumDirty, &NumInLighting](cWorld & a_World)
+			{
+				a_World.GetChunkStats(NumValid, NumDirty, NumInLighting);
+			}
+		).wait();
+
 		a_Output.Out("World %s:", World->GetName().c_str());
 		a_Output.Out("  Num loaded chunks: %d", NumValid);
 		a_Output.Out("  Num dirty chunks: %d", NumDirty);
