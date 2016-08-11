@@ -209,12 +209,10 @@ void cFinishGenClumpTopBlock::GenFinish(cChunkDesc & a_ChunkDesc)
 	{
 		int Val1 = m_Noise.IntNoise2DInt(ChunkX * ChunkZ * i, ChunkZ + ChunkX + i);
 		int Val2 = m_Noise.IntNoise2DInt(ChunkZ * ChunkX + i, ChunkZ - ChunkX * i);
+		int BlockVal = m_Noise.IntNoise2DInt(Val1, Val2);
 
 		int PosX = Val1 % (cChunkDef::Width - RANGE_FROM_CENTER * 2) + RANGE_FROM_CENTER;
 		int PosZ = Val2 % (cChunkDef::Width - RANGE_FROM_CENTER * 2) + RANGE_FROM_CENTER;
-
-		int BlockVal = m_Noise.IntNoise2DInt(Val1, Val2);
-
 
 		int TotalWeight = 0;
 		for (const auto & Block : PossibleBlocks)
@@ -249,8 +247,9 @@ void cFinishGenClumpTopBlock::TryPlaceFoliageClump(cChunkDesc & a_ChunkDesc, int
 	int NumBlocks = m_Noise.IntNoise2DInt(a_CenterX + ChunkX * 16, a_CenterZ + ChunkZ * 16) % (MAX_NUM_FOLIAGE - MIN_NUM_FOLIAGE) + MIN_NUM_FOLIAGE + 1;
 	for (int i = 1; i < NumBlocks; i++)
 	{
-		int x = a_CenterX + ((m_Noise.IntNoise2DInt(i * ChunkX * a_CenterX, i * ChunkZ) % RANGE_FROM_CENTER * 2) - RANGE_FROM_CENTER);
-		int z = a_CenterZ + ((m_Noise.IntNoise2DInt(i * ChunkZ, i * ChunkX * a_CenterZ) % RANGE_FROM_CENTER * 2) - RANGE_FROM_CENTER);
+		int rnd = m_Noise.IntNoise2DInt(ChunkX + ChunkZ + i, ChunkX - ChunkZ - i) / 59;
+		int x = a_CenterX + (((rnd % 256) % RANGE_FROM_CENTER * 2) - RANGE_FROM_CENTER);
+		int z = a_CenterZ + (((rnd / 256) % RANGE_FROM_CENTER * 2) - RANGE_FROM_CENTER);
 		int Top = a_ChunkDesc.GetHeight(x, z);
 
 		if (a_ChunkDesc.GetBlockType(x, Top, z) != E_BLOCK_GRASS)
@@ -259,7 +258,6 @@ void cFinishGenClumpTopBlock::TryPlaceFoliageClump(cChunkDesc & a_ChunkDesc, int
 		}
 
 		a_ChunkDesc.SetBlockTypeMeta(x, Top + 1, z, a_BlockType, a_BlockMeta);
-
 		if (a_IsDoubleTall)
 		{
 			a_ChunkDesc.SetBlockTypeMeta(x, Top + 2, z, E_BLOCK_BIG_FLOWER, 8);
