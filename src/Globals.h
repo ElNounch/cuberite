@@ -51,6 +51,15 @@
 
 	#define NORETURN      __declspec(noreturn)
 
+	// Shouldn't ignore this function return value, at minimal use following construct :
+	/*
+		if (!fn(parameter))
+		{
+			ASSERT(!"Expectations always lead to disappointment.");
+		}
+	*/
+	#define DONTIGNORE    _Check_return_
+
 	// Use non-standard defines in <cmath>
 	#define _USE_MATH_DEFINES
 
@@ -94,6 +103,15 @@
 	#endif
 
 	#define NORETURN      __attribute((__noreturn__))
+
+	// Shouldn't ignore this function return value, at minimal use following construct :
+	/*
+		if (!fn(parameter))
+		{
+			ASSERT(!"Expectations always lead to disappointment.");
+		}
+	*/
+	#define DONTIGNORE    __attribute__((warn_unused_result))
 
 #else
 

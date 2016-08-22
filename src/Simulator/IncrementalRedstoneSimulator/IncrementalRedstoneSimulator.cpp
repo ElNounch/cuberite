@@ -142,7 +142,10 @@ void cIncrementalRedstoneSimulator::Simulate(float a_dt)
 			}
 			BLOCKTYPE PotentialBlock;
 			NIBBLETYPE PotentialMeta;
-			m_World.GetBlockTypeMeta(Location.x, Location.y, Location.z, PotentialBlock, PotentialMeta);
+			if (!m_World.GetBlockTypeMeta(Location.x, Location.y, Location.z, PotentialBlock, PotentialMeta))
+			{
+				ASSERT(!"Expected data to be available...");
+			}
 
 			auto PotentialSourceHandler = cIncrementalRedstoneSimulator::CreateComponent(m_World, PotentialBlock, &m_Data);
 			if (PotentialSourceHandler == nullptr)

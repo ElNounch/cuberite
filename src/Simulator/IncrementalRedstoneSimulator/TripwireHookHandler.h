@@ -40,7 +40,10 @@ public:
 			NIBBLETYPE Meta;
 
 			AddFaceDirection(Position.x, Position.y, Position.z, FaceToGoTowards);
-			m_World.GetBlockTypeMeta(Position.x, Position.y, Position.z, Type, Meta);
+			if (!m_World.GetBlockTypeMeta(Position.x, Position.y, Position.z, Type, Meta))
+			{
+				ASSERT(!"Expected data to be available...");
+			}
 
 			if (Type == E_BLOCK_TRIPWIRE)
 			{
